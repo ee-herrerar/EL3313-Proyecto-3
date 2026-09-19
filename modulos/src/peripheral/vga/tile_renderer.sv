@@ -19,7 +19,7 @@ module tile_renderer (
     // 20 = 16 + 4 = (tile_y << 4) + (tile_y << 2) para optimizar multiplicación en hardware
     assign tile_addr_o = (tile_y << 4) + (tile_y << 2) + tile_x;
 
-    // Decodificación de colores (bits [2:0] según requerimiento del proyecto)
+    // Decodificación de colores (bits [2:0])
     logic [11:0] color_palette;
     always_comb begin
         case (tile_data_i[2:0])

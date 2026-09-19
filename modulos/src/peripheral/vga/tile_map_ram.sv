@@ -2,7 +2,7 @@ module tile_map_ram (
     // Puerto A: CPU (100 MHz)
     input  logic        clk_cpu_i,
     input  logic        write_enable_i,
-    input  logic [8:0]  addr_cpu_i, // 9 bits para indexar hasta 512 posiciones (usamos 300)
+    input  logic [8:0]  addr_cpu_i      // 9 bits para indexar hasta 512 posiciones
     input  logic [31:0] wdata_i,
     
     // Puerto B: VGA (25 MHz)

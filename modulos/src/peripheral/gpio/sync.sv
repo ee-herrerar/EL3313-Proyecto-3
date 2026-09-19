@@ -1,5 +1,5 @@
 module sync #(
-    parameter int N = 1 // Número de bits/botones
+    parameter int N = 6 // Número de bits/botones
 )(
     input  logic         clk,
     input  logic         reset,
