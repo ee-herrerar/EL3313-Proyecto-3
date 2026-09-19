@@ -49,13 +49,9 @@ Distribución tentativa de archivos:
 ├── constraints/
 │   └── basys3_master.xdc      # Mapeo de pines y restricciones temporales
 ├── tb/
-│   ├── tb_riscv_core.sv       # Pruebas de autochequeo del procesador
-│   ├── tb_sistema_computo.sv  # Simulación post-implementación temporizada
-│   ├── tb_uart_periph.sv      # Verificación de tramas UART
-│   └── tb_vga_periph.sv       # Pruebas de acceso a memoria de video
+│   ├── Testbench x Módulo y Top
 ├── docs/
 │   ├── informe.md             # Documentación técnica final del sistema
 │   ├── planteamiento.md       # Planteamiento de arquitectura top-down
-│   └── protocolo_uart.md      # Especificación del protocolo de mensajes UART
 └── README.md                  # Guía general del repositorio y flujo de trabajo
 ```
