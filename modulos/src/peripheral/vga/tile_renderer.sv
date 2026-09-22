@@ -28,7 +28,7 @@ module tile_renderer (
             3'b010: color_palette = 12'hF00; // Impacto (Rojo)
             3'b011: color_palette = 12'hFFF; // Fallo (Blanco)
             3'b100: color_palette = 12'h0F0; // HUD / Éxito (Verde)
-            default: color_palette = 12'h000; // Fondo/Negro
+            default: color_palette = 12'h00F; // Agua
         endcase
     end
 
