@@ -24,6 +24,8 @@ El objetivo general es lograr el correcto funcionamiento de un videojuego que no
 
 ### 3.1 Diagrama top-down
 
+<img width="591" height="349" alt="Captura de pantalla 2026-09-22 163520" src="https://github.com/user-attachments/assets/b2739a1d-7ed1-4c0c-aa9d-6d20fffd0d34" />
+
 [Diagrama general del sistema]
 
 Explicación del diagrama.
@@ -55,12 +57,19 @@ Basys3 Top
 ### 4.1 Arquitectura del procesador
 
 Explicar la arquitectura seleccionada.
+Se selecciona un procesador uniciclo por mayor simplicidad.
+
+<img width="380" height="542" alt="diagramasegundonivel" src="https://github.com/user-attachments/assets/208ba7ae-e309-411c-8611-17e540cbe290" />
+
+[Diagrama segundo nivel]
 
 [Diagrama del datapath]
 
 ### 4.2 Módulos del procesador
 
 #### 4.2.1 ALU
+
+
 
 Objetivo:
 Descripción:
