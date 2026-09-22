@@ -13,13 +13,18 @@ Distribución tentativa de archivos:
 │   └── requirements.txt      # Dependencias de la aplicación (pyserial)
 ├── rtl/
 │   ├── core/
-│   │   ├── alu.sv            # Unidad aritmético-lógica rv32i
-│   │   ├── branch_comp.sv    # Comparador de saltos condicionales
-│   │   ├── control_unit.sv   # Decodificador de control combinacional
-│   │   ├── imm_gen.sv        # Generador de inmediatos (I, S, B, U, J)
-│   │   ├── pc_reg.sv         # Contador de programa y lógica de siguiente PC
-│   │   ├── register_file.sv  # Banco de 32 registros de 32 bits
-│   │   └── riscv_core.sv     # Top del procesador (datapath + control)
+│   │   ├── ALU.sv              # Unidad aritmético-lógica
+│   │   ├── Extend.sv           # Generador de inmediatos
+│   │   ├── adder.sv            # Sumador genérico de 32 bits
+│   │   ├── alu_decoder.sv      # Decodificación de operación de la ALU
+│   │   ├── control_unit.sv     # Unidad de control del procesador
+│   │   ├── datapath.sv         # Camino de datos del procesador uniciclo
+│   │   ├── main_decoder.sv     # Decodificador principal de instrucciones
+│   │   ├── mux21.sv            # Multiplexor 2:1 de 32 bits
+│   │   ├── mux41.sv            # Multiplexor 4:1 de 32 bits
+│   │   ├── pc.sv               # Registro del contador de programa
+│   │   ├── reg_file.sv         # Banco de 32 registros de 32 bits
+│   │   └── riscv_core.sv       # Top del procesador uniciclo    # Top del procesador (datapath + control)
 │   ├── memory/
 │   │   ├── ram.sv            # Memoria RAM de datos (0x00002000–0x00002FFF)
 │   │   └── rom.sv            # Memoria ROM de programa (0x00000000–0x00001FFF)

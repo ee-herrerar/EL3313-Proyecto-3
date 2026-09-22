@@ -1,2 +1,437 @@
-# Planteamiento de diseño
+# Proyecto 3 – Batalla Naval sobre microprocesador RISC-V
 
+## 1. Introducción
+
+El siguiente proyecto es la creacion de un juego de "Batalla Naval", este se realiza con la combinacion de el lenguaje 'Assembly' con el HDL 'SystemVerilog' para la creacion de un procesador uniciclo con la arquitectura RISC-V y la logica de juego e interaccion con perifericos respectivamente, ademas de usar 'Python' para la creacion de una aplicacion ejecutable en cualquier computador para el correcto funcionamiento del juego. El juego dispondra de memorias RAM y ROM, ademas de contar con distintos modulos de manejo de perifericos. Por ultimo, se utilizara un modulo completo de UART para realizar la comunicacion serial.
+
+## 2. Objetivos del diseño
+
+### 2.1 Objetivo general
+
+El objetivo general es lograr el correcto funcionamiento de un videojuego que no solo requiere la comunicacion de la PC-FPGA trabajada anteriormente, sino que ademas se tiene que lograr el funcionamiento de el sistema VGA para su implementacion correcta dentro del sistema, un microprocesador de 32 bits y realizar todo el sistema de juego correctamente.
+
+### 2.2 Objetivos específicos
+
+--Lograr la creacion funcional y util del procesador de 32 bits con arquitectura RISC-V.
+--Lograr la creacion funcional y util de la memoria ROM y RAM, para el almacenamiento del programa y datos respectivamente.
+--Lograr el correcto funcionamiento del períferico VGA para enviar la señal un monitor.
+--Lograr el correcto funcionamiento e implementacion del sistema UART para una correcta comunicacion serial.
+--Lograr el correcto funcionamiento del períferico de display de 7 segmentos para llevar el conteo de partidas ganadas por cada jugador
+--Lograr que el sistema de juego funcione correctamente, siendo capaz de ejecutar su maquina de estados correctamente y mantener el flujo de juego de manera adecuada
+
+
+## 3. Arquitectura general del sistema
+
+### 3.1 Diagrama top-down
+
+[Diagrama general del sistema]
+
+Explicación del diagrama.
+
+### 3.2 Jerarquía de módulos
+
+[Diagrama jerárquico]
+
+Ejemplo:
+
+Basys3 Top
+|
++-- Sistema de cómputo
+    |
+    +-- RISC-V Core
+    +-- ROM
+    +-- RAM
+    +-- Bus Interconnect
+    +-- UART
+    +-- VGA
+    +-- GPIO
+    +-- Displays
+    +-- LED
+    +-- Buzzer
+
+
+## 4. Microprocesador RISC-V
+
+### 4.1 Arquitectura del procesador
+
+Explicar la arquitectura seleccionada.
+
+[Diagrama del datapath]
+
+### 4.2 Módulos del procesador
+
+#### 4.2.1 ALU
+
+Objetivo:
+Descripción:
+
+Entradas:
+
+| Señal | Tamaño | Descripción |
+|-------|--------|-------------|
+| ...   | ...    | ...         |
+
+Salidas:
+
+| Señal | Tamaño | Descripción |
+|-------|--------|-------------|
+| ...   | ...    | ...         |
+
+
+#### 4.2.2 Banco de registros
+
+Objetivo:
+Descripción:
+Entradas:
+Salidas:
+
+
+#### 4.2.3 Generador de inmediatos
+
+Objetivo:
+Descripción:
+
+
+#### 4.2.4 Unidad de control
+
+Objetivo:
+Descripción:
+
+[Tabla de señales de control]
+
+
+#### 4.2.5 Comparador de branch
+
+Objetivo:
+Descripción:
+
+
+#### 4.2.6 Program Counter
+
+Objetivo:
+Descripción:
+
+
+### 4.3 Instrucciones soportadas
+
+| Tipo | Instrucciones |
+|------|---------------|
+| Load/Store | lw, sw |
+| Aritméticas | add, sub, addi |
+| Lógicas | and, or, xor, ... |
+| Branch | beq, bne, blt, bge |
+| Jump | jal, jalr |
+| ... | ... |
+
+
+## 5. Subsistema de memoria
+
+### 5.1 ROM
+
+Objetivo:
+Tamaño:
+Rango de direcciones:
+Funcionamiento:
+
+
+### 5.2 RAM
+
+Objetivo:
+Tamaño:
+Rango de direcciones:
+Funcionamiento:
+
+
+### 5.3 Organización de datos en RAM
+
+Explicar cómo se almacenarán:
+
+- Tablero del Jugador 1
+- Tablero del Jugador 2
+- Barcos
+- Turno actual
+- Contadores
+- Variables del juego
+
+
+## 6. Interconexión y mapa de memoria
+
+### 6.1 Bus del sistema
+
+Explicar:
+
+DataAddress
+DataOut
+DataIn
+Write Enable
+
+
+### 6.2 Decodificación de direcciones
+
+[Diagrama del bus/interconnect]
+
+
+### 6.3 Mapa de memoria
+
+| Dispositivo | Dirección / rango |
+|-------------|-------------------|
+| ROM | 0x00000000 – 0x00001FFF |
+| RAM | 0x00002000 – 0x00002FFF |
+| UART | ... |
+| GPIO | ... |
+| VGA | ... |
+| Buzzer | ... |
+
+
+## 7. Periféricos
+
+## 7.1 Entradas del Jugador 1
+
+Objetivo:
+Descripción:
+
+### Debouncing
+
+Explicar el método propuesto.
+
+### Registro de estado
+
+| Bit | Entrada |
+|-----|---------|
+| ... | Arriba |
+| ... | Abajo |
+| ... | Izquierda |
+| ... | Derecha |
+| ... | BTN SEL |
+| ... | BTN OK |
+| ... | BTN RST |
+
+
+## 7.2 UART
+
+Objetivo:
+Descripción:
+
+### Módulos internos
+
+- Baud generator
+- UART TX
+- UART RX
+- UART peripheral
+
+### Registros
+
+| Offset | Registro |
+|--------|----------|
+| 0x00 | Control/Estado |
+| 0x04 | TX |
+| 0x08 | RX |
+
+
+## 7.3 VGA
+
+Objetivo:
+Descripción:
+
+### Generación de sincronismos
+
+Explicar 640 × 480 @ 60 Hz.
+
+### Tile Map
+
+Explicar la cuadrícula seleccionada.
+
+[Diagrama de pantalla]
+
+### Memoria de video
+
+Explicar Dual-Port RAM.
+
+### Codificación de tiles
+
+| Código | Contenido |
+|--------|-----------|
+| ... | Agua |
+| ... | Barco |
+| ... | Impacto |
+| ... | Fallo |
+| ... | HUD |
+
+
+## 7.4 Displays de 7 segmentos
+
+Objetivo:
+Mostrar la cantidad de partidas ganadas por cada jugador
+Descripción:    
+Este periferico se encarga de mostrar las partidas totales ganadas por cada uno de los jugadores
+Asignación de los cuatro dígitos.
+
+
+## 7.5 LED de estado
+
+Objetivo:
+Descripción:
+
+Definir cómo se indicarán:
+
+- Colocación
+- Batalla
+- Fin de partida
+
+
+## 7.6 Buzzer
+
+Objetivo:
+Descripción:
+
+Definir los sonidos para:
+
+- Impacto
+- Fallo
+- Barco hundido
+- Colocación inválida
+- Victoria
+
+
+## 8. Sistema de reloj
+
+### 8.1 Reloj principal
+
+100 MHz de la FPGA.
+
+### 8.2 Reloj VGA
+
+Generación de 25 MHz mediante PLL.
+
+[Diagrama de dominios de reloj]
+
+
+## 9. Programa en ensamblador
+
+### 9.1 Organización general
+
+[Diagrama de flujo principal]
+
+Inicialización
+      |
+      v
+Colocación
+      |
+      v
+Batalla
+      |
+      v
+Fin de partida
+
+
+### 9.2 Subrutinas propuestas
+
+Explicar las principales subrutinas:
+
+- Inicializar sistema
+- Limpiar tableros
+- Colocar barco
+- Validar colocación
+- Realizar disparo
+- Validar disparo
+- Detectar impacto
+- Detectar barco hundido
+- Detectar victoria
+- Actualizar VGA
+- Enviar UART
+
+
+## 10. Protocolo de comunicación UART
+
+### 10.1 PC → FPGA
+
+Definir tramas para:
+
+- Colocación de barco
+- Disparo
+
+
+### 10.2 FPGA → PC
+
+Definir tramas para:
+
+- Colocación aceptada
+- Colocación rechazada
+- Cambio de turno
+- Impacto
+- Fallo
+- Barco hundido
+- Fin de partida
+
+
+### 10.3 Formato de trama
+
+[Tabla con bytes/campos]
+
+
+## 11. Aplicación de PC
+
+Explicar brevemente el diseño propuesto para Python.
+
+[Diagrama de flujo de la aplicación]
+
+Funciones principales:
+
+- Conexión serial
+- Colocación de barcos
+- Visualización de tableros
+- Envío de disparos
+- Recepción de eventos
+
+
+## 12. Estrategia de implementación
+
+Explicar el orden de desarrollo propuesto.
+
+Por ejemplo:
+
+Core → Memorias → Bus → Periféricos → VGA → UART →
+Integración → Ensamblador → Aplicación Python
+
+
+## 13. Plan de validación
+
+### 13.1 Pruebas unitarias
+
+Definir testbench para cada módulo.
+
+### 13.2 Pruebas de integración
+
+Core + ROM + RAM
+
+Core + Bus
+
+Core + Periféricos
+
+Sistema completo
+
+
+### 13.3 Pruebas autoverificables
+
+Explicar los criterios PASS/FAIL de los testbenches.
+
+
+## 14. Decisiones de diseño y justificación
+
+Explicar y justificar decisiones como:
+
+- Procesador monociclo o arquitectura seleccionada
+- Organización de RAM
+- Tamaño del tile VGA
+- Codificación del tablero
+- Protocolo UART
+- Manejo de botones
+- Organización modular
+
+
+## 15. Estructura del repositorio
+
+[Árbol del repositorio]
+
+
+## 16. Referencias
