@@ -44,14 +44,32 @@ Distribución tentativa de archivos:
 │   │       └── vga_sync.sv     # Sincronismos VGA 640x480@60Hz
 │   ├── interconnect/
 │   │   └── bus_interconnect.sv # Decodificador de direcciones y MUX de lectura
-│   ├── sistema_computo.sv     # Integración SoC (Core + Memorias + Interconexión)
+│   ├── clock/
+│   │       └── clock_gen.sv
+│   ├── sistema_computo.sv     # Integración SoC: Core + ROM + RAM + Bus + UART + VGA + GPIO + Displays + LED + Buzzer
 │   └── basys3_top.sv          # Top RTL físico para la FPGA Basys 3
 ├── constraints/
 │   └── basys3_master.xdc      # Mapeo de pines y restricciones temporales
 ├── tb/
-│   ├── Testbench x Módulo y Top
-├── docs/
-│   ├── informe.md             # Documentación técnica final del sistema
-│   ├── planteamiento.md       # Planteamiento de arquitectura top-down
+│   ├── core/
+│   │   ├── alu_tb.sv
+│   │   ├── register_file_tb.sv
+│   │   ├── branch_comp_tb.sv
+│   │   ├── riscv_core_tb.sv
+│   │   └── imm_gen_tb.sv
+│   ├── peripherals/
+│   │   ├── uart_tb.sv
+│   │   ├── gpio_tb.sv
+│   │   ├── buzzer_tb.sv
+│   │   └── vga_tb.sv
+│   ├── interconnect/
+│   │   └── bus_interconnect_tb.sv
+│   └── sistema/
+│       └── sistema_computo_tb.sv
+docs/
+├── diseño/
+│   └── planteamiento.md
+├── informe/
+│    └── informe.md       # Planteamiento de arquitectura top-down
 └── README.md                  # Guía general del repositorio y flujo de trabajo
 ```

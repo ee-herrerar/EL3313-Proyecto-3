@@ -1,3 +1,2 @@
 # Planteamiento de diseño
 
-WIP
