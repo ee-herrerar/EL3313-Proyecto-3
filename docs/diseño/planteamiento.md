@@ -424,18 +424,22 @@ Write Enable
 
 a) Nombre del módulo: j1_input (instancia sync y debouncer)
 
-b) <img width="360" height="502" alt="Captura de pantalla 2026-09-23 152707" src="https://github.com/user-attachments/assets/9596b072-c0ea-4a74-8913-11d606db6f9d" />
+b) 
+<img width="360" height="502" alt="Captura de pantalla 2026-09-23 152707" src="https://github.com/user-attachments/assets/9596b072-c0ea-4a74-8913-11d606db6f9d" />
+
 Diagrama tercer nivel
 
 c) Objetivo: ntregar al CPU, en un único registro de 32 bits legible por lw, el estado ya sincronizado y filtrado de rebotes de los 6 controles físicos del Jugador 1 (arriba, abajo, izquierda, derecha, OK/rotar, reiniciar).
 
-d) | entradas | descripcion |
+d) 
+| entradas | descripcion |
 |-----|---------|
 | clk_i, rst_i| Reloj de sistema y reset |
 | btns_in[5:0] |	Señales físicas crudas de los pulsadores |
 | write_enable_i, addr_i[1:0], wdata_i[31:0] | 	Bus estándar (no se usan para escritura; periférico de solo lectura) |
 
-e)  | entradas | descripcion |
+e)  
+| entradas | descripcion |
 |-----|---------|
 |rdata_o[31:0]	| 	{26'b0, btns_debounced[5:0]} en addr_i=00 |
 
@@ -459,8 +463,6 @@ d) Ecuacion de metaestabilidad t_estable = (2^20 − 1) / CLK_FREQ_HZ ≈ 10.49 
 | 4 | BTN SEL |
 | 5 | BTN OK |
 | 6 | BTN RST |
-
-
 
 ## 7.2 UART
 
@@ -538,8 +540,15 @@ Explicar Dual-Port RAM.
 
 ## 7.4 Displays de 7 segmentos
 
+a) Nombre del modulo: display_7seg.sv, seven_seg_mux.sv
+
+b)
+
+<img width="280" height="355" alt="Captura de pantalla 2026-09-23 152804" src="https://github.com/user-attachments/assets/1835fe41-f20a-4573-a807-bc4b85c5be0d" />
+Diagrama tercer nivel
+
 Objetivo:
-Mostrar la cantidad de partidas ganadas por cada jugador
+Mostrar en los 4 displays físicos de la Basys3 el contador acumulado de partidas ganadas por cada jugador (2 dígitos por jugador), multiplexando en el tiempo.
 Descripción:    
 Este periferico se encarga de mostrar las partidas totales ganadas por cada uno de los jugadores
 Asignación de los cuatro dígitos.
