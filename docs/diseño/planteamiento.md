@@ -13,10 +13,15 @@ El objetivo general es lograr el correcto funcionamiento de un videojuego que no
 ### 2.2 Objetivos específicos
 
 --Lograr la creacion funcional y util del procesador de 32 bits con arquitectura RISC-V.
+
 --Lograr la creacion funcional y util de la memoria ROM y RAM, para el almacenamiento del programa y datos respectivamente.
+
 --Lograr el correcto funcionamiento del períferico VGA para enviar la señal un monitor.
+
 --Lograr el correcto funcionamiento e implementacion del sistema UART para una correcta comunicacion serial.
+
 --Lograr el correcto funcionamiento del períferico de display de 7 segmentos para llevar el conteo de partidas ganadas por cada jugador
+
 --Lograr que el sistema de juego funcione correctamente, siendo capaz de ejecutar su maquina de estados correctamente y mantener el flujo de juego de manera adecuada
 
 
