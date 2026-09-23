@@ -161,6 +161,7 @@ operaciones de escritura sobre `x0` son ignoradas.
 | `RD1` | Salida    | 32 bits | Dato almacenado en el registro seleccionado por `A1`.          |
 | `RD2` | Salida    | 32 bits | Dato almacenado en el registro seleccionado por `A2`.          |
 
+![Diagrama del RegisterFile](./Imagenes/BancoReg.png)
 
 #### 4.2.3 Generador de inmediatos
 
