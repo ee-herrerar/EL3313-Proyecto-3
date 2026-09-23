@@ -296,15 +296,20 @@ a `32'b0`, haciendo que la ejecución comience desde la dirección
 ![Diagrama del Program Counter](./Imagenes/PC.png)
 
 ### 4.3 Instrucciones soportadas
+| Instrucciones                         | Estado actual                                                                                                                         |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `add`, `sub`, `and`, `or`, `xor`      | Implementadas en la ALU y decodificadas.                                                                                              |
+| `slt`, `sll`, `srl`, `sra`            | Implementadas en la ALU y decodificadas.                                                                                              |
+| `addi`, `andi`, `ori`, `xori`, `slti` | Implementadas y decodificadas.                                                                                                        |
+| `slli`, `srli`, `srai`                | Implementadas y decodificadas.                                                                                                        |
+| `beq`, `bne`, `blt`, `bge`            | Contempladas en la unidad de control.                                                                                                 |
+| `jal`                                 | Contemplada en la unidad de control y el `datapath`.                                                                                  |
+| `lb`, `lh`, `lw`, `lbu`, `lhu`        | Contempladas por la memoria de datos; falta completar la conexión de `funct3` en el `datapath`.                                       |
+| `sb`, `sh`, `sw`                      | Contempladas por la memoria de datos; falta completar la conexión de `funct3` en el `datapath`.                                       |
+| `jalr`                                | El `datapath` y `PCSrc` contemplan el salto, pero falta completar su decodificación en `main_decoder`.                                |
+| `lui`                                 | El generador de inmediatos y la ALU contemplan la operación, pero falta completar la decodificación correspondiente en `alu_decoder`. |
+| `sltu`, `sltiu`                       | La ALU contempla la comparación sin signo, pero falta completar su decodificación en `alu_decoder`.                                   |
 
-| Tipo | Instrucciones |
-|------|---------------|
-| Load/Store | lw, sw |
-| Aritméticas | add, sub, addi |
-| Lógicas | and, or, xor, ... |
-| Branch | beq, bne, blt, bge |
-| Jump | jal, jalr |
-| ... | ... |
 
 
 ## 5. Subsistema de memoria
