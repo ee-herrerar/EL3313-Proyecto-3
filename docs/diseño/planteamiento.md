@@ -653,10 +653,12 @@ Explicar los criterios PASS/FAIL de los testbenches.
 
 ## 14. Decisiones de diseño y justificación
 
-Explicar y justificar decisiones como:
+-Se selecciona la estructura monociclo debido a que no solo se está familiarizado con esta, sino que representa la opción más obvia para el proyecto y sencilla de implementar, 
+por lo que da la oportunidad de alocar más tiempo a otras partes del proyecto.
 
-- Procesador monociclo o arquitectura seleccionada
-- Organización de RAM
+-La organización de la RAM se realizó de esa manera, ya que mantiene un orden lógico (cada uno de los estados de la casilla está ordenado de manera ascendente). 
+Además, que cada posición de casilla sea su mismo índice para ser encontrado facilita la lectura y comprensión, por lo que el trabajar con este orden es más fácil.
+
 - Tamaño del tile VGA
 - Codificación del tablero
 - Protocolo UART
@@ -664,9 +666,4 @@ Explicar y justificar decisiones como:
 - Organización modular
 
 
-## 15. Estructura del repositorio
-
-[Árbol del repositorio]
-
-
-## 16. Referencias
+## 17. Referencias
