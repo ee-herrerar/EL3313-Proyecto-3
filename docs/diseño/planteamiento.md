@@ -453,7 +453,8 @@ g) El sincronizador de dos etapas resuelve la metaestabilidad de las 6 entradas 
 
 ### Registro de estado
 
-d) Ecuacion de metaestabilidad t_estable = (2^20 − 1) / CLK_FREQ_HZ ≈ 10.49 ms  (a 100 MHz)
+d) Ecuacion de metaestabilidad 
+t_estable = (2^20 − 1) / CLK_FREQ_HZ ≈ 10.49 ms  (a 100 MHz)
 
 | Bit | Entrada |
 |-----|---------|
@@ -556,19 +557,35 @@ Descripción:
 Este periferico se encarga de mostrar las partidas totales ganadas por cada uno de los jugadores
 Asignación de los cuatro dígitos.
 
-e) 
+d) 
 | entradas | descripcion |
 |-----|---------|
 | clk_i, rst_i| Reloj de sistema y reset |
 | write_enable_i, addr_i[1:0], wdata_i[31:0] | Bus estándar; 4 dígitos BCD empaquetados en wdata_i[15:0] |
 
-f) 
+e) 
 | salidas | descripcion |
 |-----|---------|
 | rdata_o[31:0]| 	Eco del registro de datos |
 | seg[6:0], dp, an[3:0]| Señales físicas hacia los displays |
 
+f) Relación con otros módulos
+
+El registro se actualiza desde la subrutina actualizar_contador_partidas del programa ensamblador.
+
+g) Explicación de funcionamiento
+
+Un contador de refresco genera un pulso de habilitación periódico que avanza un contador módulo 4; este selecciona, mediante un multiplexor 4:1, cuál de los 4 dígitos BCD mostrar y, en paralelo, activa la línea de ánodo correspondiente. El decodificador BCD→7 segmentos traduce el dígito activo al patrón físico de segmentos.
+
+
+
 ## 7.5 LED de estado
+
+a) Nombre del módulo led_perifico (instancia status_led)
+
+b) Diagrama modular
+
+Ver diagrama de tercer nivel mostrado arriba.
 
 Objetivo:
 Descripción:
