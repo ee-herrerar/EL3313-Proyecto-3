@@ -316,11 +316,20 @@ a `32'b0`, haciendo que la ejecución comience desde la dirección
 
 ### 5.1 ROM
 
-Objetivo:
-Tamaño:
-Rango de direcciones:
-Funcionamiento:
+El módulo `instr_mem` implementa la memoria de instrucciones del procesador.
+La memoria está formada por palabras de 32 bits y utiliza como dirección de
+entrada la señal `A`, proveniente directamente del contador de programa.
 
+| Señal | Dirección |  Tamaño | Descripción                                                   |
+| ----- | --------- | ------: | ------------------------------------------------------------- |
+| `A`   | Entrada   | 32 bits | Dirección de la instrucción solicitada, proveniente del `PC`. |
+| `RD`  | Salida    | 32 bits | Instrucción almacenada en la dirección seleccionada.          |
+
+| Parámetro | Valor actual | Descripción                                                |
+| --------- | -----------: | ---------------------------------------------------------- |
+| `DEPTH`   |          256 | Cantidad de palabras de 32 bits almacenadas en la memoria. |
+
+![Diagrama del ROM](./Imagenes/ROM.png)
 
 ### 5.2 RAM
 
