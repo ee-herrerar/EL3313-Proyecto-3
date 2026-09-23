@@ -165,8 +165,27 @@ operaciones de escritura sobre `x0` son ignoradas.
 #### 4.2.3 Generador de inmediatos
 
 Objetivo:
-Descripción:
+Generar un valor inmediato de 32 bits a partir de los campos correspondientes
+de la instrucción RISC-V, de acuerdo con el formato indicado por la señal de
+control `ImmSrc`.
 
+Descripción:
+El módulo `Extend` recibe la instrucción completa de 32 bits mediante la señal
+`Instr` y utiliza la señal `ImmSrc` para determinar cómo deben reorganizarse y
+extenderse los bits que forman el inmediato.
+
+Dependiendo del tipo de instrucción, los bits del inmediato se encuentran en
+diferentes posiciones dentro de `Instr`. El módulo se encarga de extraerlos,
+ordenarlos y extenderlos hasta obtener un valor de 32 bits denominado
+`ImmExt`.
+
+| Señal | Dirección | Tamaño | Descripción |
+|---|---|---:|---|
+| `Instr` | Entrada | 32 bits | Instrucción actual de la cual se extraen los bits del inmediato. |
+| `ImmSrc` | Entrada | 4 bits | Selecciona el formato utilizado para construir el inmediato. |
+| `ImmExt` | Salida | 32 bits | Valor inmediato extendido a 32 bits. |
+
+![Diagrama del Extend](./Imagenes/Extend.png)
 
 #### 4.2.4 Unidad de control
 
