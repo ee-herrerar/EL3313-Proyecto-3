@@ -311,7 +311,6 @@ a `32'b0`, haciendo que la ejecución comience desde la dirección
 | `sltu`, `sltiu`                       | La ALU contempla la comparación sin signo, pero falta completar su decodificación en `alu_decoder`.                                   |
 
 
-
 ## 5. Subsistema de memoria
 
 ### 5.1 ROM
@@ -350,6 +349,7 @@ arreglo de 256 palabras de 32 bits.
 | `001`    | `sh`      | Escribe `WD[15:0]`. |
 | `010`    | `sw`      | Escribe `WD[31:0]`. |
 
+![Diagrama del RAM](./Imagenes/RAM.png)
 
 ### 5.3 Organización de datos en RAM
 
