@@ -116,10 +116,45 @@ Las entradas y salidas del módulo se muestran en la siguiente tabla:
 
 #### 4.2.2 Banco de registros
 
-Objetivo:
-Descripción:
-Entradas:
-Salidas:
+El módulo `reg_file` implementa un banco de 32 registros de 32 bits. Su
+función es almacenar los operandos y resultados utilizados durante la
+ejecución de las instrucciones.
+
+El banco permite realizar dos lecturas simultáneas mediante las salidas `RD1`
+y `RD2`, y una escritura mediante la entrada `WD3`. Las direcciones de los
+registros utilizados se indican mediante las señales `A1`, `A2` y `A3`.
+
+Dentro del datapath, estas direcciones se obtienen directamente de los campos
+de la instrucción:
+
+- `A1 = Instr[19:15]`
+- `A2 = Instr[24:20]`
+- `A3 = Instr[11:7]`
+
+La señal `RegWrite`, proveniente de la unidad de control, se conecta a `WE3`
+y determina si debe realizarse una escritura. El valor que se escribe en el
+registro seleccionado corresponde a la señal `Result`, proveniente del
+multiplexor de resultados.
+
+Las salidas `RD1` y `RD2` corresponden al contenido de los registros
+seleccionados por `A1` y `A2`, respectivamente. `RD1` se utiliza como primer
+operando de la ALU, mientras que `RD2` puede utilizarse como segundo operando
+de la ALU o como dato para una operación de escritura en memoria.
+
+El registro `x0` mantiene siempre el valor cero. Cuando `A1` o `A2` seleccionan
+el registro cero, la salida correspondiente retorna `0`. De igual manera, las
+operaciones de escritura sobre `x0` son ignoradas.
+
+| Señal | Dirección |  Tamaño | Descripción                                                    |
+| ----- | --------- | ------: | -------------------------------------------------------------- |
+| `clk` | Entrada   |   1 bit | Reloj utilizado para realizar las escrituras en los registros. |
+| `WE3` | Entrada   |   1 bit | Habilita la escritura en el banco de registros.                |
+| `A1`  | Entrada   |  5 bits | Dirección del primer registro que se desea leer.               |
+| `A2`  | Entrada   |  5 bits | Dirección del segundo registro que se desea leer.              |
+| `A3`  | Entrada   |  5 bits | Dirección del registro en el cual se realizará la escritura.   |
+| `WD3` | Entrada   | 32 bits | Dato que será escrito en el registro seleccionado por `A3`.    |
+| `RD1` | Salida    | 32 bits | Dato almacenado en el registro seleccionado por `A1`.          |
+| `RD2` | Salida    | 32 bits | Dato almacenado en el registro seleccionado por `A2`.          |
 
 
 #### 4.2.3 Generador de inmediatos
