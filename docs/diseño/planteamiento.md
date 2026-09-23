@@ -82,24 +82,35 @@ bloques:
 
 ### 4.2 Módulos del procesador
 
+El microprocesador se encuentra dividido en dos bloques principales:
+el camino de datos (`datapath`) y la unidad de control (`control_unit`).
+El módulo `cpu` funciona como nivel superior del procesador y realiza la
+interconexión entre ambos bloques.
+
 #### 4.2.1 ALU
 
+La unidad aritmético-lógica (ALU) es el bloque encargado de realizar las
+operaciones aritméticas, lógicas, de comparación y desplazamiento requeridas
+por las instrucciones ejecutadas por el procesador.
 
+La ALU recibe dos operandos de 32 bits, denominados `SrcA` y `SrcB`. La
+operación que se realiza sobre estos operandos es determinada por la señal
+`ALUControl`, de 4 bits, proveniente de la unidad de control.
 
-Objetivo:
-Descripción:
+Como resultado, la ALU genera la señal `ALUResult` de 32 bits. Adicionalmente,
+genera las señales `zero` y `less`, utilizadas posteriormente por la unidad
+de control para evaluar condiciones asociadas a instrucciones de salto.
 
-Entradas:
+Las entradas y salidas del módulo se muestran en la siguiente tabla:
 
-| Señal | Tamaño | Descripción |
-|-------|--------|-------------|
-| ...   | ...    | ...         |
-
-Salidas:
-
-| Señal | Tamaño | Descripción |
-|-------|--------|-------------|
-| ...   | ...    | ...         |
+| Señal | Dirección | Tamaño | Descripción |
+|---|---|---:|---|
+| `SrcA` | Entrada | 32 bits | Primer operando de la ALU. |
+| `SrcB` | Entrada | 32 bits | Segundo operando de la ALU. |
+| `ALUControl` | Entrada | 4 bits | Selecciona la operación que realiza la ALU. |
+| `ALUResult` | Salida | 32 bits | Resultado de la operación realizada. |
+| `zero` | Salida | 1 bit | Se activa cuando `ALUResult` es igual a cero. |
+| `less` | Salida | 1 bit | Indica si `SrcA` es menor que `SrcB` mediante una comparación con signo. |
 
 
 #### 4.2.2 Banco de registros
