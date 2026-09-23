@@ -273,9 +273,27 @@ el valor de `PCSrc`.
 
 #### 4.2.6 Program Counter
 
-Objetivo:
-Descripción:
+El módulo `pc` implementa el contador de programa del procesador. Este registro
+mantiene un valor de 32 bits denominado `PC`, el cual representa la dirección de
+la instrucción actual.
 
+El valor del contador se actualiza en cada flanco positivo de la señal `clk`.
+Durante una operación normal, el nuevo valor almacenado corresponde a
+`PCnext`, generado por el multiplexor `u_pcmux` dentro del `datapath`.
+
+Cuando la señal `rst` se encuentra activa, el contador de programa se reinicia
+a `32'b0`, haciendo que la ejecución comience desde la dirección
+`0x00000000`.
+
+| Señal    | Dirección |  Tamaño | Descripción                                                                  |
+| -------- | --------- | ------: | ---------------------------------------------------------------------------- |
+| `clk`    | Entrada   |   1 bit | Señal de reloj utilizada para actualizar el contador de programa.            |
+| `rst`    | Entrada   |   1 bit | Reinicia el contador de programa a `0x00000000`.                             |
+| `PCnext` | Entrada   | 32 bits | Dirección que será almacenada como siguiente valor del contador de programa. |
+| `PC`     | Salida    | 32 bits | Dirección de la instrucción que se encuentra actualmente en ejecución.       |
+
+
+![Diagrama del Program Counter](./Imagenes/PC.png)
 
 ### 4.3 Instrucciones soportadas
 
