@@ -191,10 +191,49 @@ ordenarlos y extenderlos hasta obtener un valor de 32 bits denominado
 #### 4.2.4 Unidad de control
 
 Objetivo:
+Decodificar la instrucción que se encuentra en ejecución y generar las señales
+de control necesarias para determinar el comportamiento del `datapath`.
+
 Descripción:
+El módulo `control_unit` recibe los campos principales de la instrucción:
+
+- `op`: código de operación de la instrucción.
+- `funct3`: campo utilizado para diferenciar operaciones que comparten un mismo
+  `opcode`.
+- `funct7`: campo adicional utilizado para diferenciar ciertas operaciones.
+
+| Señal        | Dirección | Tamaño | Descripción                                                                                     |
+| ------------ | --------- | -----: | ----------------------------------------------------------------------------------------------- |
+| `op`         | Entrada   | 7 bits | Código de operación de la instrucción.                                                          |
+| `funct3`     | Entrada   | 3 bits | Campo de función utilizado para diferenciar instrucciones con un mismo `opcode`.                |
+| `funct7`     | Entrada   | 7 bits | Campo adicional utilizado para diferenciar determinadas operaciones.                            |
+| `zero`       | Entrada   |  1 bit | Indica que el resultado generado por la ALU es igual a cero.                                    |
+| `less`       | Entrada   |  1 bit | Indica que el primer operando de la ALU es menor que el segundo mediante comparación con signo. |
+| `RegWrite`   | Salida    |  1 bit | Habilita la escritura en el banco de registros.                                                 |
+| `ALUSrc`     | Salida    |  1 bit | Selecciona el segundo operando utilizado por la ALU.                                            |
+| `ResultSrc`  | Salida    | 2 bits | Selecciona el resultado que será escrito en el banco de registros.                              |
+| `ImmSrc`     | Salida    | 4 bits | Selecciona el formato utilizado por el generador de inmediatos.                                 |
+| `ALUControl` | Salida    | 4 bits | Selecciona la operación que debe realizar la ALU.                                               |
+| `PCSrc`      | Salida    | 2 bits | Selecciona el siguiente valor del contador de programa.                                         |
+| `MemWrite`   | Salida    |  1 bit | Habilita la escritura en la memoria de datos.                                                   |
+
 
 [Tabla de señales de control]
 
+| Señal | Dirección | Tamaño | Descripción |
+|---|---|---:|---|
+| `op` | Entrada | 7 bits | Código de operación de la instrucción utilizado para identificar el tipo de instrucción. |
+| `funct3` | Entrada | 3 bits | Campo de función utilizado para diferenciar instrucciones que comparten un mismo `opcode`. |
+| `funct7` | Entrada | 7 bits | Campo de función adicional utilizado para diferenciar determinadas operaciones. |
+| `zero` | Entrada | 1 bit | Indica que el resultado generado por la ALU es igual a cero. |
+| `less` | Entrada | 1 bit | Indica que `SrcA` es menor que `SrcB` mediante una comparación con signo. |
+| `RegWrite` | Salida | 1 bit | Habilita la escritura de un resultado en el banco de registros. |
+| `ALUSrc` | Salida | 1 bit | Selecciona el segundo operando de la ALU entre `RD2` e `ImmExt`. |
+| `ResultSrc` | Salida | 2 bits | Selecciona el dato que será escrito nuevamente en el banco de registros. |
+| `MemWrite` | Salida | 1 bit | Habilita la escritura en la memoria de datos. |
+| `ImmSrc` | Salida | 4 bits | Selecciona el formato de inmediato que debe generar el módulo `Extend`. |
+| `ALUControl` | Salida | 4 bits | Selecciona la operación que debe realizar la ALU. |
+| `PCSrc` | Salida | 2 bits | Selecciona la fuente utilizada para determinar el siguiente valor del contador de programa. |
 
 #### 4.2.5 Comparador de branch
 
