@@ -465,6 +465,11 @@ Descripción:
 
 ## 7.3 VGA
 #### Diagrama 
+
+<div align="center">
+<img src="./Imagenes/Diagrama VGA.png" width="400" height="600">
+</div>
+
 #### Objetivo: 
 El siguiente periférico se encarga de mostrar en un monitor VGA un mapa de tiles correspondiente al juego battleships. Cada tile está compuesto por 32x32 pixeles que muestran un color especifico dependiendo de lo que se encuentre en este (agua, barco, impacto fallido o impacto acertado).
 #### Descripción:  
