@@ -239,9 +239,41 @@ El módulo `control_unit` recibe los campos principales de la instrucción:
 
 #### 4.2.5 Comparador de branch
 
-Objetivo:
-Descripción:
+Determinar si se cumple la condición asociada a una instrucción de salto
+condicional y, a partir de dicho resultado, indicar si el contador de programa
+debe continuar con la ejecución secuencial o cargar la dirección de salto
+`PCTarget`.
 
+En el procesador actual, la comparación necesaria para las instrucciones de
+branch no se encuentra implementada como un módulo independiente. Esta función
+se encuentra distribuida entre la ALU y la unidad de control.
+
+La ALU recibe los operandos `SrcA` y `SrcB` y genera las señales `zero` y
+`less`.
+
+La señal `zero` se activa cuando el resultado de la operación realizada por la
+ALU es igual a cero:
+
+`zero = (ALUResult == 32'd0)`
+
+Por otra parte, `less` indica si `SrcA` es menor que `SrcB` mediante una
+comparación con signo:
+
+`less = ($signed(SrcA) < $signed(SrcB))`
+
+Estas dos señales son enviadas hacia `control_unit`, donde se combinan con las
+señales internas que identifican el tipo de branch. De esta manera se determina
+el valor de `PCSrc`.
+
+| Señal | Origen | Tamaño | Descripción |
+|---|---|---:|---|
+| `zero` | ALU | 1 bit | Indica que `ALUResult` es igual a cero. |
+| `less` | ALU | 1 bit | Indica que `SrcA` es menor que `SrcB` mediante comparación con signo. |
+| `Branch` | `main_decoder` | 1 bit | Identifica una instrucción `BEQ`. |
+| `BranchNE` | `main_decoder` | 1 bit | Identifica una instrucción `BNE`. |
+| `BranchLT` | `main_decoder` | 1 bit | Identifica una instrucción `BLT`. |
+| `BranchGE` | `main_decoder` | 1 bit | Identifica una instrucción `BGE`. |
+| `PCSrc` | `control_unit` | 2 bits | Selecciona la fuente del siguiente valor del PC. |
 
 #### 4.2.6 Program Counter
 
