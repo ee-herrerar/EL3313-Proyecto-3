@@ -429,21 +429,37 @@ Diagrama tercer nivel
 
 c) Objetivo: ntregar al CPU, en un único registro de 32 bits legible por lw, el estado ya sincronizado y filtrado de rebotes de los 6 controles físicos del Jugador 1 (arriba, abajo, izquierda, derecha, OK/rotar, reiniciar).
 
+d) | entradas | descripcion |
+|-----|---------|
+| clk_i, rst_i| Reloj de sistema y reset |
+| btns_in[5:0] |	Señales físicas crudas de los pulsadores |
+| write_enable_i, addr_i[1:0], wdata_i[31:0] | 	Bus estándar (no se usan para escritura; periférico de solo lectura) |
+
+e)  | entradas | descripcion |
+|-----|---------|
+|rdata_o[31:0]	| 	{26'b0, btns_debounced[5:0]} en addr_i=00 |
+
+f) ) Relación con otros módulos: Es consumido exclusivamente por el programa en ensamblador (subrutina leer_botones), que lee este registro por polling. No depende de ningún otro periférico.
+
+
 ### Debouncing
 
-El sincronizador de dos etapas resuelve la metaestabilidad de las 6 entradas asíncronas. El filtro antirrebote —replicado 6 veces mediante generate— solo actualiza btn_out[i] cuando la entrada se mantiene estable durante 2²⁰−1 ciclos consecutivos (~10.5 ms a 100 MHz), reiniciando el conteo cada vez que detecta un cambio. El resultado se expone de forma puramente combinacional en rdata_o
+g) El sincronizador de dos etapas resuelve la metaestabilidad de las 6 entradas asíncronas. El filtro antirrebote —replicado 6 veces mediante generate— solo actualiza btn_out[i] cuando la entrada se mantiene estable durante 2²⁰−1 ciclos consecutivos (~10.5 ms a 100 MHz), reiniciando el conteo cada vez que detecta un cambio. El resultado se expone de forma puramente combinacional en rdata_o
 
 ### Registro de estado
 
+d) Ecuacion de metaestabilidad t_estable = (2^20 − 1) / CLK_FREQ_HZ ≈ 10.49 ms  (a 100 MHz)
+
 | Bit | Entrada |
 |-----|---------|
-| ... | Arriba |
-| ... | Abajo |
-| ... | Izquierda |
-| ... | Derecha |
-| ... | BTN SEL |
-| ... | BTN OK |
-| ... | BTN RST |
+| 0 | Arriba |
+| 1 | Abajo |
+| 2 | Izquierda |
+| 3 | Derecha |
+| 4 | BTN SEL |
+| 5 | BTN OK |
+| 6 | BTN RST |
+
 
 
 ## 7.2 UART
