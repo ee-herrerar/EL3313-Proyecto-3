@@ -56,8 +56,22 @@ Basys3 Top
 
 ### 4.1 Arquitectura del procesador
 
-Explicar la arquitectura seleccionada.
-Se selecciona un procesador uniciclo por mayor simplicidad.
+El sistema utilizará un microprocesador de 32 bits basado en la arquitectura
+RISC-V y en el subconjunto de instrucciones RV32I. Se utilizará una arquitectura
+uniciclo, por lo que cada instrucción será ejecutada completamente durante un
+único ciclo de reloj. 
+La arquitectura del procesador se divide principalmente en los siguientes
+bloques:
+
+- Contador de programa (PC).
+- Banco de registros.
+- Generador de inmediatos.
+- Unidad aritmético-lógica (ALU).
+- Unidad de control.
+- Decodificador principal.
+- Decodificador de operaciones de la ALU.
+- Sumadores para el cálculo de PC + 4 y direcciones de salto.
+- Multiplexores para selección de operandos, resultado y siguiente valor del PC.
 
 <img width="380" height="542" alt="diagramasegundonivel" src="https://github.com/user-attachments/assets/208ba7ae-e309-411c-8611-17e540cbe290" />
 
