@@ -570,33 +570,48 @@ Generación de 25 MHz mediante PLL.
 
 [Diagrama de flujo principal]
 
-Inicialización
-      |
-      v
-Colocación
-      |
-      v
-Batalla
-      |
-      v
-Fin de partida
+Implementar la lógica completa del juego de Batalla Naval mediante un programa
+en ensamblador RISC-V ejecutado por el microprocesador.
+
+El programa será responsable de controlar la colocación de barcos, los turnos,
+los disparos, la detección de impactos, barcos hundidos y la condición de
+victoria.
+
+El programa seguirá un flujo principal dividido en las siguientes etapas:
+
+1. Inicialización del sistema.
+2. Limpieza de los tableros y variables almacenadas en RAM.
+3. Colocación de barcos del Jugador 1 y Jugador 2.
+4. Inicio de la fase de batalla.
+5. Lectura del jugador correspondiente.
+6. Validación del disparo.
+7. Actualización del tablero.
+8. Verificación de barcos hundidos.
+9. Verificación de la condición de victoria.
+10. Cambio de turno.
+11. Finalización de la partida.
 
 
 ### 9.2 Subrutinas propuestas
 
 Explicar las principales subrutinas:
 
-- Inicializar sistema
-- Limpiar tableros
-- Colocar barco
-- Validar colocación
-- Realizar disparo
-- Validar disparo
-- Detectar impacto
-- Detectar barco hundido
-- Detectar victoria
-- Actualizar VGA
-- Enviar UART
+| Subrutina            | Función                                                              |
+| -------------------- | -------------------------------------------------------------------- |
+| `sistema_ini`        | Inicializar variables y periféricos.                                 |
+| `limpiar_tableros`       | Limpiar los tableros almacenados en RAM.                             |
+| `barco_ini`         | Colocar un barco en el tablero correspondiente.                      |
+| `barco_valido`      | Verificar que un barco no salga del tablero ni se traslape con otro. |
+| `input_j1` | Leer las entradas del Jugador 1.                                     |
+| `input_j2`          | Recibir comandos del Jugador 2 mediante UART.                        |
+| `verif_shot`       | Procesar un disparo realizado por un jugador.                        |
+| `acierto`          | Determinar si un disparo corresponde a impacto o fallo.              |
+| `hundir`         | Determinar si un barco fue hundido.                                  |
+| `condi_ganar`      | Verificar si todos los barcos de un jugador fueron hundidos.         |
+| `sistema_vga`         | Actualizar la información mostrada mediante VGA.                     |
+| `uart_p1`          | Enviar información hacia la aplicación del Jugador 2.                |
+| `buzzer_sound`         | Activar el buzzer dependiendo del evento ocurrido.                   |
+
 
 
 ## 10. Protocolo de comunicación UART
