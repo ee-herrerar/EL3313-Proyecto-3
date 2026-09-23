@@ -165,12 +165,10 @@ operaciones de escritura sobre `x0` son ignoradas.
 
 #### 4.2.3 Generador de inmediatos
 
-Objetivo:
 Generar un valor inmediato de 32 bits a partir de los campos correspondientes
 de la instrucción RISC-V, de acuerdo con el formato indicado por la señal de
 control `ImmSrc`.
 
-Descripción:
 El módulo `Extend` recibe la instrucción completa de 32 bits mediante la señal
 `Instr` y utiliza la señal `ImmSrc` para determinar cómo deben reorganizarse y
 extenderse los bits que forman el inmediato.
@@ -190,11 +188,9 @@ ordenarlos y extenderlos hasta obtener un valor de 32 bits denominado
 
 #### 4.2.4 Unidad de control
 
-Objetivo:
-Decodificar la instrucción que se encuentra en ejecución y generar las señales
+Este modulo se encarga de decodificar la instrucción que se encuentra en ejecución y generar las señales
 de control necesarias para determinar el comportamiento del `datapath`.
 
-Descripción:
 El módulo `control_unit` recibe los campos principales de la instrucción:
 
 - `op`: código de operación de la instrucción.
