@@ -467,7 +467,7 @@ Descripción:
 #### Diagrama (Nivel 3)
 
 <div align="center">
-<img src="./Imagenes/Diagrama VGA.png" width="500" height="800">
+<img src="./Imagenes/Diagrama VGA.png" width="500" height="1100">
 </div>
 
 #### Objetivo: 
