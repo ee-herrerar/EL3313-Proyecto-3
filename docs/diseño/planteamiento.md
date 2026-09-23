@@ -422,12 +422,16 @@ Write Enable
 
 ## 7.1 Entradas del Jugador 1
 
-Objetivo:
-Descripción:
+a) Nombre del módulo: j1_input (instancia sync y debouncer)
+
+b) <img width="360" height="502" alt="Captura de pantalla 2026-09-23 152707" src="https://github.com/user-attachments/assets/9596b072-c0ea-4a74-8913-11d606db6f9d" />
+Diagrama tercer nivel
+
+c) Objetivo: ntregar al CPU, en un único registro de 32 bits legible por lw, el estado ya sincronizado y filtrado de rebotes de los 6 controles físicos del Jugador 1 (arriba, abajo, izquierda, derecha, OK/rotar, reiniciar).
 
 ### Debouncing
 
-Explicar el método propuesto.
+El sincronizador de dos etapas resuelve la metaestabilidad de las 6 entradas asíncronas. El filtro antirrebote —replicado 6 veces mediante generate— solo actualiza btn_out[i] cuando la entrada se mantiene estable durante 2²⁰−1 ciclos consecutivos (~10.5 ms a 100 MHz), reiniciando el conteo cada vez que detecta un cambio. El resultado se expone de forma puramente combinacional en rdata_o
 
 ### Registro de estado
 
