@@ -235,6 +235,8 @@ El módulo `control_unit` recibe los campos principales de la instrucción:
 | `ALUControl` | Salida | 4 bits | Selecciona la operación que debe realizar la ALU. |
 | `PCSrc` | Salida | 2 bits | Selecciona la fuente utilizada para determinar el siguiente valor del contador de programa. |
 
+![Diagrama del Unidad Control](./Imagenes/UnidadControl.png)
+
 #### 4.2.5 Comparador de branch
 
 Objetivo:
