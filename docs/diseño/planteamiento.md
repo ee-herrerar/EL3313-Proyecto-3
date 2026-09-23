@@ -77,7 +77,8 @@ bloques:
 
 [Diagrama segundo nivel]
 
-[Diagrama del datapath]
+![Diagrama del Datapath](./Imagenes/Datapath-CPU.png)
+
 
 ### 4.2 Módulos del procesador
 
