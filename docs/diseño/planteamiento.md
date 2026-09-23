@@ -439,7 +439,7 @@ d)
 | write_enable_i, addr_i[1:0], wdata_i[31:0] | 	Bus estándar (no se usan para escritura; periférico de solo lectura) |
 
 e)  
-| entradas | descripcion |
+| salidas | descripcion |
 |-----|---------|
 |rdata_o[31:0]	| 	{26'b0, btns_debounced[5:0]} en addr_i=00 |
 
@@ -547,12 +547,23 @@ b)
 <img width="280" height="355" alt="Captura de pantalla 2026-09-23 152804" src="https://github.com/user-attachments/assets/1835fe41-f20a-4573-a807-bc4b85c5be0d" />
 Diagrama tercer nivel
 
-Objetivo:
+c) Objetivo:
 Mostrar en los 4 displays físicos de la Basys3 el contador acumulado de partidas ganadas por cada jugador (2 dígitos por jugador), multiplexando en el tiempo.
 Descripción:    
 Este periferico se encarga de mostrar las partidas totales ganadas por cada uno de los jugadores
 Asignación de los cuatro dígitos.
 
+e) 
+| entradas | descripcion |
+|-----|---------|
+| clk_i, rst_i| Reloj de sistema y reset |
+| write_enable_i, addr_i[1:0], wdata_i[31:0] | Bus estándar; 4 dígitos BCD empaquetados en wdata_i[15:0] |
+
+f) 
+| salidas | descripcion |
+|-----|---------|
+| rdata_o[31:0]| 	Eco del registro de datos |
+| seg[6:0], dp, an[3:0]| Señales físicas hacia los displays |
 
 ## 7.5 LED de estado
 
