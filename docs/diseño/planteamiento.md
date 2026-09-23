@@ -425,6 +425,7 @@ Write Enable
 a) Nombre del módulo: j1_input (instancia sync y debouncer)
 
 b) 
+
 <img width="360" height="502" alt="Captura de pantalla 2026-09-23 152707" src="https://github.com/user-attachments/assets/9596b072-c0ea-4a74-8913-11d606db6f9d" />
 
 Diagrama tercer nivel
@@ -545,7 +546,9 @@ a) Nombre del modulo: display_7seg.sv, seven_seg_mux.sv
 b)
 
 <img width="280" height="355" alt="Captura de pantalla 2026-09-23 152804" src="https://github.com/user-attachments/assets/1835fe41-f20a-4573-a807-bc4b85c5be0d" />
+
 Diagrama tercer nivel
+
 
 c) Objetivo:
 Mostrar en los 4 displays físicos de la Basys3 el contador acumulado de partidas ganadas por cada jugador (2 dígitos por jugador), multiplexando en el tiempo.
