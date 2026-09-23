@@ -353,14 +353,40 @@ arreglo de 256 palabras de 32 bits.
 
 ### 5.3 Organización de datos en RAM
 
-Explicar cómo se almacenarán:
+## Organización de datos en RAM
 
-- Tablero del Jugador 1
-- Tablero del Jugador 2
-- Barcos
-- Turno actual
-- Contadores
-- Variables del juego
+La memoria RAM se utilizará para almacenar los datos necesarios durante la
+ejecución del juego, principalmente los tableros de ambos jugadores y algunas
+variables de control.
+
+Cada jugador posee un tablero de 8 × 8 casillas, por lo que se almacenarán
+64 posiciones por jugador. Cada posición utilizará una palabra de 32 bits.
+
+La organización propuesta es:
+
+| Región | Dirección inicial | Contenido |
+|---|---:|---|
+| Tablero Jugador 1 | `0x00002000` | 64 casillas del tablero del Jugador 1 |
+| Tablero Jugador 2 | `0x00002100` | 64 casillas del tablero del Jugador 2 |
+| Variables de control | `0x00002200` | Turno, fase del juego, contadores y estado de barcos |
+
+Cada casilla del tablero podrá almacenar uno de los siguientes estados:
+
+| Valor | Estado |
+|---:|---|
+| `0` | Agua |
+| `1` | Barco 0 |
+| `2` | Barco 1 |
+| `3` | Barco 2 |
+| `4` | Fallo |
+| `5` | Barco 0 impactado |
+| `6` | Barco 1 impactado |
+| `7` | Barco 2 impactado |
+
+Las posiciones del tablero se almacenarán por filas. La dirección de una
+casilla se calculará mediante:
+
+`dirección = BASE + (fila × 8 + columna) × 4`
 
 
 ## 6. Interconexión y mapa de memoria
