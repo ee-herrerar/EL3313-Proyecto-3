@@ -112,6 +112,7 @@ Las entradas y salidas del módulo se muestran en la siguiente tabla:
 | `zero` | Salida | 1 bit | Se activa cuando `ALUResult` es igual a cero. |
 | `less` | Salida | 1 bit | Indica si `SrcA` es menor que `SrcB` mediante una comparación con signo. |
 
+![Diagrama del ALU](./Imagenes/ALU.png)
 
 #### 4.2.2 Banco de registros
 
