@@ -495,22 +495,30 @@ El siguiente periférico se encarga de mostrar en un monitor VGA un mapa de tile
 #### Descripción:  
 ###### tile_map_ram
 Este se encarga de almacenar la información de los tiles, esta es modificada por el CPU conforme el juego avanza y la VGA puede leer esta información por medio del módulo tile_renderer.
+
 Entradas:
+
 - clk_cpu_i: reloj del CPU. 
 - write_enable_i: habilita la escritura. 
 - addr_cpu_i: dirección de memoria donde escribe el CPU. 
 - wdata_i: dato que escribe el CPU. 
 - clk_vga_i: reloj que utiliza el subsistema VGA. 
 - addr_vga_i: dirección de memoria que la VGA desea leer.
+
 Salidas:
+
 - rdata_vga_o: información del tile leído por la VGA.
-- vga_sync:
+
 ###### vga_sync:
 Genera señales de sincronización para la VGA y recorre cada pixel, para que el resto de módulos procesen la información de este.  
+
 Entradas:
+
 - clk_vga_i: reloj de 25 MHz utilizado para recorrer la pantalla. 
 - rst_i: señal de reinicio.
+  
 Salidas:
+
 - hsync_o: señal de sincronización horizontal para el monitor. 
 - vsync_o: señal de sincronización vertical para el monitor. 
 - pixel_x_o: posición horizontal actual del píxel. 
@@ -518,24 +526,32 @@ Salidas:
 - video_on_o: indica si la posición actual se encuentra dentro del área visible.
 ###### tile_renderer:
 El módulo se encarga de identificar en que tile se encuentra cada pixel y que color representa a partir del pixel que recibe desde vga_sync y la información de tile_map_ram.
+
 Entradas:
+
 - pixel_x_i: posición horizontal del píxel. 
 - pixel_y_i: posición vertical del píxel. 
 - video_on_i: indica si el píxel está dentro del área visible. 
 - tile_data_i: información del tile obtenida de tile_map_ram.
+  
 Salidas:
+
 - tile_addr_o: dirección del tile que debe leerse de la memoria. 
 - rgb_o: color RGB correspondiente al píxel.
 ###### vga_periph:
 Este integra al resto de módulos recibiendo la información que viene desde el procesador, el reloj con el que trabaja la VGA y generando las salidas físicas a la FPGA. 
+
 Entradas:
+
 - clk_cpu_i: reloj del procesador. 
 - rst_i: señal de reinicio. 
 - write_enable_i: habilita la escritura desde el procesador. 
 - addr_i: dirección de memoria enviada por el procesador. 
 - wdata_i: dato enviado por el procesador. 
-- clk_vga_i: reloj utilizado por el sistema VGA. 
+- clk_vga_i: reloj utilizado por el sistema VGA.
+  
 Salidas:
+
 - hsync_o: señal de sincronización horizontal. 
 - vsync_o: señal de sincronización vertical. 
 - vga_r_o: componente roja de la señal RGB. 
