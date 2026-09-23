@@ -333,10 +333,22 @@ entrada la señal `A`, proveniente directamente del contador de programa.
 
 ### 5.2 RAM
 
-Objetivo:
-Tamaño:
-Rango de direcciones:
-Funcionamiento:
+El módulo `data_mem` implementa la memoria de datos del procesador mediante un
+arreglo de 256 palabras de 32 bits.
+
+| `funct3` | Operación | Resultado de lectura                                 |
+| -------- | --------- | ---------------------------------------------------- |
+| `000`    | `lb`      | Lee 8 bits y realiza extensión de signo a 32 bits.   |
+| `001`    | `lh`      | Lee 16 bits y realiza extensión de signo a 32 bits.  |
+| `010`    | `lw`      | Lee los 32 bits de la palabra.                       |
+| `100`    | `lbu`     | Lee 8 bits y realiza extensión con ceros a 32 bits.  |
+| `101`    | `lhu`     | Lee 16 bits y realiza extensión con ceros a 32 bits. |
+
+| `funct3` | Operación | Escritura realizada |
+| -------- | --------- | ------------------- |
+| `000`    | `sb`      | Escribe `WD[7:0]`.  |
+| `001`    | `sh`      | Escribe `WD[15:0]`. |
+| `010`    | `sw`      | Escribe `WD[31:0]`. |
 
 
 ### 5.3 Organización de datos en RAM
