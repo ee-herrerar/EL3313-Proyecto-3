@@ -464,10 +464,10 @@ Descripción:
 
 
 ## 7.3 VGA
-#### Diagrama 
+#### Diagrama (Nivel 3)
 
 <div align="center">
-<img src="./Imagenes/Diagrama VGA.png" width="400" height="600">
+<img src="./Imagenes/Diagrama VGA.png" width="500" height="800">
 </div>
 
 #### Objetivo: 
