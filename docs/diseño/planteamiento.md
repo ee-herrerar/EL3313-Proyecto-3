@@ -422,24 +422,44 @@ Write Enable
 
 ## 7.1 Entradas del Jugador 1
 
-Objetivo:
-Descripción:
+a) Nombre del módulo: j1_input (instancia sync y debouncer)
+
+b) <img width="360" height="502" alt="Captura de pantalla 2026-09-23 152707" src="https://github.com/user-attachments/assets/9596b072-c0ea-4a74-8913-11d606db6f9d" />
+Diagrama tercer nivel
+
+c) Objetivo: ntregar al CPU, en un único registro de 32 bits legible por lw, el estado ya sincronizado y filtrado de rebotes de los 6 controles físicos del Jugador 1 (arriba, abajo, izquierda, derecha, OK/rotar, reiniciar).
+
+d) | entradas | descripcion |
+|-----|---------|
+| clk_i, rst_i| Reloj de sistema y reset |
+| btns_in[5:0] |	Señales físicas crudas de los pulsadores |
+| write_enable_i, addr_i[1:0], wdata_i[31:0] | 	Bus estándar (no se usan para escritura; periférico de solo lectura) |
+
+e)  | entradas | descripcion |
+|-----|---------|
+|rdata_o[31:0]	| 	{26'b0, btns_debounced[5:0]} en addr_i=00 |
+
+f) ) Relación con otros módulos: Es consumido exclusivamente por el programa en ensamblador (subrutina leer_botones), que lee este registro por polling. No depende de ningún otro periférico.
+
 
 ### Debouncing
 
-Explicar el método propuesto.
+g) El sincronizador de dos etapas resuelve la metaestabilidad de las 6 entradas asíncronas. El filtro antirrebote —replicado 6 veces mediante generate— solo actualiza btn_out[i] cuando la entrada se mantiene estable durante 2²⁰−1 ciclos consecutivos (~10.5 ms a 100 MHz), reiniciando el conteo cada vez que detecta un cambio. El resultado se expone de forma puramente combinacional en rdata_o
 
 ### Registro de estado
 
+d) Ecuacion de metaestabilidad t_estable = (2^20 − 1) / CLK_FREQ_HZ ≈ 10.49 ms  (a 100 MHz)
+
 | Bit | Entrada |
 |-----|---------|
-| ... | Arriba |
-| ... | Abajo |
-| ... | Izquierda |
-| ... | Derecha |
-| ... | BTN SEL |
-| ... | BTN OK |
-| ... | BTN RST |
+| 0 | Arriba |
+| 1 | Abajo |
+| 2 | Izquierda |
+| 3 | Derecha |
+| 4 | BTN SEL |
+| 5 | BTN OK |
+| 6 | BTN RST |
+
 
 
 ## 7.2 UART
@@ -467,7 +487,7 @@ Descripción:
 #### Diagrama (Nivel 3)
 
 <div align="center">
-<img src="./Imagenes/Diagrama VGA.png" width="500" height="800">
+<img src="./Imagenes/Diagrama VGA.png" width="500" height="1100">
 </div>
 
 #### Objetivo: 
@@ -570,33 +590,48 @@ Generación de 25 MHz mediante PLL.
 
 [Diagrama de flujo principal]
 
-Inicialización
-      |
-      v
-Colocación
-      |
-      v
-Batalla
-      |
-      v
-Fin de partida
+Implementar la lógica completa del juego de Batalla Naval mediante un programa
+en ensamblador RISC-V ejecutado por el microprocesador.
+
+El programa será responsable de controlar la colocación de barcos, los turnos,
+los disparos, la detección de impactos, barcos hundidos y la condición de
+victoria.
+
+El programa seguirá un flujo principal dividido en las siguientes etapas:
+
+1. Inicialización del sistema.
+2. Limpieza de los tableros y variables almacenadas en RAM.
+3. Colocación de barcos del Jugador 1 y Jugador 2.
+4. Inicio de la fase de batalla.
+5. Lectura del jugador correspondiente.
+6. Validación del disparo.
+7. Actualización del tablero.
+8. Verificación de barcos hundidos.
+9. Verificación de la condición de victoria.
+10. Cambio de turno.
+11. Finalización de la partida.
 
 
 ### 9.2 Subrutinas propuestas
 
 Explicar las principales subrutinas:
 
-- Inicializar sistema
-- Limpiar tableros
-- Colocar barco
-- Validar colocación
-- Realizar disparo
-- Validar disparo
-- Detectar impacto
-- Detectar barco hundido
-- Detectar victoria
-- Actualizar VGA
-- Enviar UART
+| Subrutina            | Función                                                              |
+| -------------------- | -------------------------------------------------------------------- |
+| `sistema_ini`        | Inicializar variables y periféricos.                                 |
+| `limpiar_tableros`       | Limpiar los tableros almacenados en RAM.                             |
+| `barco_ini`         | Colocar un barco en el tablero correspondiente.                      |
+| `barco_valido`      | Verificar que un barco no salga del tablero ni se traslape con otro. |
+| `input_j1` | Leer las entradas del Jugador 1.                                     |
+| `input_j2`          | Recibir comandos del Jugador 2 mediante UART.                        |
+| `verif_shot`       | Procesar un disparo realizado por un jugador.                        |
+| `acierto`          | Determinar si un disparo corresponde a impacto o fallo.              |
+| `hundir`         | Determinar si un barco fue hundido.                                  |
+| `condi_ganar`      | Verificar si todos los barcos de un jugador fueron hundidos.         |
+| `sistema_vga`         | Actualizar la información mostrada mediante VGA.                     |
+| `uart_p1`          | Enviar información hacia la aplicación del Jugador 2.                |
+| `buzzer_sound`         | Activar el buzzer dependiendo del evento ocurrido.                   |
+
 
 
 ## 10. Protocolo de comunicación UART
