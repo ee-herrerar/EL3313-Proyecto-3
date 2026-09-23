@@ -464,9 +464,27 @@ Descripción:
 
 
 ## 7.3 VGA
+#### Diagrama 
+#### Objetivo: 
+El siguiente periférico se encarga de mostrar en un monitor VGA un mapa de tiles correspondiente al juego battleships. Cada tile está compuesto por 32x32 pixeles que muestran un color especifico dependiendo de lo que se encuentre en este (agua, barco, impacto fallido o impacto acertado).
+#### Descripción:  
+###### tile_map_ram
+Este se encarga de almacenar la información de los tiles, esta es modificada por el CPU conforme el juego avanza y la VGA puede leer esta información por medio del módulo tile_renderer.
+Entradas:
+Salidas:
+###### vga_sync:
+Genera señales de sincronización para la VGA y recorre cada pixel, para que el resto de módulos procesen la información de este.  
+Entradas:
+Salidas:
+###### tile_renderer:
+El módulo se encarga de identificar en que tile se encuentra cada pixel y que color representa a partir del pixel que recibe desde vga_sync y la información de tile_map_ram.
+Entradas:
+Salidas:
+###### vga_periph:
+Este integra al resto de módulos recibiendo la información que viene desde el procesador, el reloj con el que trabaja la VGA y generando las salidas físicas a la FPGA. 
+Entradas:
+Salidas:
 
-Objetivo:
-Descripción:
 
 ### Generación de sincronismos
 
