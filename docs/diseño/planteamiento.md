@@ -420,6 +420,12 @@ Write Enable
 
 ## 7. Periféricos
 
+Se define la siguiente extrucutra para el sistem de perifericos: UART Interface → UART-USB: es el único canal de comunicación con el Jugador 2 remoto (aplicación de PC). Todo lo que el CPU necesita decirle o preguntarle al jugador remoto pasa por aquí.
+Buzzer: recibe códigos de evento (impacto, fallo, hundido, colocación inválida, victoria) y los traduce a tonos.
+Display (7 seg, LEDs): agrupa en el diagrama tus dos periféricos display_7seg y led_perifico — cada uno vive en su propia dirección, pero conceptualmente ambos son "salida de estado visible".
+GPIO (botones): sea j1_input, la única entrada local del Jugador 1 (con antirrebote).
+VGA: la excepción del bus — aunque comparte las mismas 3 líneas eléctricas, internamente se comporta como memoria de video en vez de registros de comando, por eso el enunciado le exige un campo de dirección más ancho.
+
 ## 7.1 Entradas del Jugador 1
 
 a) Nombre del módulo: j1_input (instancia sync y debouncer)
