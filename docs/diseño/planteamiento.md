@@ -793,7 +793,7 @@ Core + Periféricos
 
 Sistema completo
 
-
+<!-- 
 ### 13.3 Pruebas autoverificables
 
 Explicar los criterios PASS/FAIL de los testbenches.
@@ -815,3 +815,5 @@ Además, que cada posición de casilla sea su mismo índice para ser encontrado 
 
 
 ## 17. Referencias
+
+-->
