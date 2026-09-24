@@ -33,7 +33,15 @@ El objetivo general es lograr el correcto funcionamiento de un videojuego que no
 
 [Diagrama general del sistema]
 
-Explicación del diagrama.
+La arquitectura se organiza alrededor de dos buses de propósito distinto:
+
+Bus de programa (dedicado, de solo lectura). El procesador RISC-V (rv32i) accede a la memoria de programa (ROM) mediante un bus exclusivo: rom_addr hacia la ROM y rom_instr de regreso. Este bus nunca transporta datos, únicamente instrucciones, siguiendo una organización tipo Harvard que evita que el fetch de instrucciones compita con los accesos a datos.
+
+Bus de datos (compartido, mapeado en memoria). La memoria de datos (RAM) y todos los periféricos UART, buzzer, displays/LED y GPIO de botones comparten un mismo bus de tres líneas: address, write y read. Desde la perspectiva del procesador, escribir en un periférico y escribir en RAM son la misma operación (sw); lo único que distingue el destino es la dirección utilizada. Un decodificador de direcciones (bloque de interconexión) interpreta address para enrutar cada acceso hacia la RAM o hacia el periférico correspondiente, y multiplexa las señales de lectura de todos los periféricos hacia el procesador.
+
+El periférico VGA comparte el mismo bus eléctrico, pero se comporta como una memoria de video en lugar de un conjunto de registros de comando, por lo que requiere un campo de dirección más ancho que el resto de los periféricos.
+
+Bajo este esquema, todo el comportamiento específico del juego —colocación de barcos, turnos, validación de disparos, condición de victoria— reside exclusivamente en el programa ensamblador que se ejecuta sobre el procesador. El hardware permanece agnóstico a la aplicación: el mismo conjunto de bloques serviría para ejecutar cualquier otro programa rv32i que utilizara los mismos periféricos.
 
 ### 3.2 Jerarquía de módulos
 
@@ -426,6 +434,10 @@ Display (7 seg, LEDs): agrupa en el diagrama tus dos periféricos display_7seg y
 GPIO (botones): sea j1_input, la única entrada local del Jugador 1 (con antirrebote).
 VGA: la excepción del bus — aunque comparte las mismas 3 líneas eléctricas, internamente se comporta como memoria de video en vez de registros de comando, por eso el enunciado le exige un campo de dirección más ancho.
 
+<img width="376" height="508" alt="Captura de pantalla 2026-09-23 202602" src="https://github.com/user-attachments/assets/3840d716-8807-48cc-b41a-b2617e46504f" />
+
+Diagrama segundo nivel sistema de perifericos
+
 ## 7.1 Entradas del Jugador 1
 
 a) Nombre del módulo: j1_input (instancia sync y debouncer)
@@ -591,30 +603,62 @@ a) Nombre del módulo led_perifico (instancia status_led)
 
 b) Diagrama modular
 
+<img width="928" height="313" alt="Captura de pantalla 2026-09-23 202538" src="https://github.com/user-attachments/assets/5661608b-f8eb-46cb-b229-93f1d2c96543" />
+
+
 Ver diagrama de tercer nivel mostrado arriba.
 
-Objetivo:
-Descripción:
+Objetivo:Indicar con un LED distinto y mutuamente excluyente en cuál fase se encuentra la partida: colocación de barcos, batalla, o resultado final.
 
-Definir cómo se indicarán:
+f) Relación con otros módulos
 
-- Colocación
-- Batalla
-- Fin de partida
+El código de fase se actualiza desde el flujo principal del programa ensamblador al transitar entre fase_colocacion, fase_batalla y fin_partida.
 
+g) Explicación de funcionamiento
+
+Tres comparadores combinacionales evalúan en paralelo si game_state coincide con cada uno de los 3 códigos válidos; cada resultado enciende un bit distinto de led.
 
 ## 7.6 Buzzer
 
-Objetivo:
-Descripción:
+a) Nombre del módulo
 
-Definir los sonidos para:
+buzzer_perifico (instancia buzzer_driver)
 
-- Impacto
-- Fallo
-- Barco hundido
-- Colocación inválida
-- Victoria
+b) Diagrama modular
+
+<img width="206" height="332" alt="Captura de pantalla 2026-09-23 152746" src="https://github.com/user-attachments/assets/ae6e7e5a-80b1-4e76-bacc-f09d598040b1" />
+
+
+c) Objetivo: Generar 5 tonos distintos y perceptibles para los eventos del juego (impacto, fallo, barco hundido, colocación inválida, victoria), disparados por el CPU mediante una única escritura sw a un registro de control.
+
+d)
+| entradas | descripcion |
+|-----|---------|
+| clk_i, rst_i| Reloj de sistema y reset |
+| write_enable_i, addr_i[1:0], wdata_i[31:0] |	Bus estándar; wdata_i[2:0] = código de evento (1–5) |
+
+
+f)
+| Salida| descripcion |
+|-----|---------|
+| rdata_o[31:0]| 	Eco del último código de evento escrit |
+| buzzer_pwm |		Onda cuadrada hacia el buzzer pasivo |
+
+
+
+f) Relación con otros módulos
+
+El código de evento proviene de las subrutinas procesar_disparo, detectar_hundido, validar_colocacion y verificar_victoria del programa ensamblador.
+
+g) Explicación de funcionamiento
+
+El decodificador de evento convierte wdata_i[2:0] en uno de 5 pulsos de 1 ciclo (aprovechando que write_enable_i ya dura exactamente 1 ciclo en cada sw). Cada pulso carga en buzzer_driver el semiperiodo y la duración correspondientes a ese evento; un contador de duración cuenta hacia atrás hasta apagar el tono, y en paralelo un contador de ciclos alterna la salida cada vez que alcanza el semiperiodo cargado, generando la onda cuadrad
+
+h) Diseño — tabla de códigos de evento
+
+<img width="388" height="294" alt="Captura de pantalla 2026-09-23 203920" src="https://github.com/user-attachments/assets/e0e6d7e7-c824-4ed6-869b-2cee1ce9e43c" />
+
+
 
 
 ## 8. Sistema de reloj
