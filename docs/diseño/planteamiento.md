@@ -11,18 +11,12 @@ El siguiente proyecto es la creacion de un juego de "Batalla Naval", este se rea
 El objetivo general es lograr el correcto funcionamiento de un videojuego que no solo requiere la comunicacion de la PC-FPGA trabajada anteriormente, sino que ademas se tiene que lograr el funcionamiento de el sistema VGA para su implementacion correcta dentro del sistema, un microprocesador de 32 bits y realizar todo el sistema de juego correctamente.
 
 ### 2.2 Objetivos específicos
-
---Lograr la creacion funcional y util del procesador de 32 bits con arquitectura RISC-V.
-
---Lograr la creacion funcional y util de la memoria ROM y RAM, para el almacenamiento del programa y datos respectivamente.
-
---Lograr el correcto funcionamiento del períferico VGA para enviar la señal un monitor.
-
---Lograr el correcto funcionamiento e implementacion del sistema UART para una correcta comunicacion serial.
-
---Lograr el correcto funcionamiento del períferico de display de 7 segmentos para llevar el conteo de partidas ganadas por cada jugador
-
---Lograr que el sistema de juego funcione correctamente, siendo capaz de ejecutar su maquina de estados correctamente y mantener el flujo de juego de manera adecuada
+-Lograr la creacion funcional y util del procesador de 32 bits con arquitectura RISC-V.
+-Lograr la creacion funcional y util de la memoria ROM y RAM, para el almacenamiento del programa y datos respectivamente.
+-Lograr el correcto funcionamiento del períferico VGA para enviar la señal un monitor.
+-Lograr el correcto funcionamiento e implementacion del sistema UART para una correcta comunicacion serial.
+-Lograr el correcto funcionamiento del períferico de display de 7 segmentos para llevar el conteo de partidas ganadas por cada jugador
+-Lograr que el sistema de juego funcione correctamente, siendo capaz de ejecutar su maquina de estados correctamente y mantener el flujo de juego de manera adecuada
 
 
 ## 3. Arquitectura general del sistema
