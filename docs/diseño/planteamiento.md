@@ -38,7 +38,7 @@ El periférico VGA comparte el mismo bus eléctrico, pero se comporta como una m
 Bajo este esquema, todo el comportamiento específico del juego —colocación de barcos, turnos, validación de disparos, condición de victoria— reside exclusivamente en el programa ensamblador que se ejecuta sobre el procesador. El hardware permanece agnóstico a la aplicación: el mismo conjunto de bloques serviría para ejecutar cualquier otro programa rv32i que utilizara los mismos periféricos.
 
 ### 3.2 Jerarquía de módulos
-[https://github.com/user-attachments/assets/b2739a1d-7ed1-4c0c-aa9d-6d20fffd0d34](https://github.com/ee-herrerar/EL3313-Proyecto-3/blob/1184339ff9c93fc59122d0748abf84779cb6c830/docs/dise%C3%B1o/Imagenes/batalla_naval_diseno_general.svg)
+![https://github.com/user-attachments/assets/b2739a1d-7ed1-4c0c-aa9d-6d20fffd0d34](https://github.com/ee-herrerar/EL3313-Proyecto-3/blob/1184339ff9c93fc59122d0748abf84779cb6c830/docs/dise%C3%B1o/Imagenes/batalla_naval_diseno_general.svg)
 
 ## 4. Microprocesador RISC-V
 
