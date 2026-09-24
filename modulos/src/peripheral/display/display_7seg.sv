@@ -37,6 +37,3 @@ module display_7seg (
     );
  
 endmodule
-
-    
-endmodule

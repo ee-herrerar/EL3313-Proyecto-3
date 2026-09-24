@@ -1,5 +1,6 @@
 module debouncer #(
-    parameter int N = 1 // Número de bits/botones
+    parameter int N = 1, // Número de bits/botones
+    parameter int DEBOUNCE_CYCLES = 20'd1048575
 )(
     input  logic         clk,
     input  logic         reset,
@@ -24,7 +25,7 @@ module debouncer #(
                         btn_prev <= btn_in[i];
                         contador <= '0;
                     end
-                    else if (contador < 20'd1048575) begin
+                    else if (contador < DEBOUNCE_CYCLES) begin
                         contador <= contador + 1'b1;
                     end
                     else begin

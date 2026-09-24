@@ -1,4 +1,4 @@
-module sync #(
+module sync_legacy #(
     parameter int N = 6 // Número de bits/botones
 )(
     input  logic         clk,
