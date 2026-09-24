@@ -1,8 +1,8 @@
 # EL3313-Proyecto-3
 
 El siguiente proyecto es para el desarrollo del proyecto 3 del curso _EL3313:  Taller de Diseño Digital_.
-
-Distribución tentativa de archivos:
+En la carpeta __Docs__ estarán los avances de diseño y de informe final respectivamente. 
+Presente repositorio en proceso cuya estructura se encuentra basada en la siguiente distribución tentativa de archivos:
 ```bash
 .
 ├── asm/
