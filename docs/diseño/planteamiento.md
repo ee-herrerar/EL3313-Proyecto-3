@@ -4,6 +4,12 @@
 
 El siguiente proyecto es la creacion de un juego de "Batalla Naval", este se realiza con la combinacion de el lenguaje 'Assembly' con el HDL 'SystemVerilog' para la creacion de un procesador uniciclo con la arquitectura RISC-V y la logica de juego e interaccion con perifericos respectivamente, ademas de usar 'Python' para la creacion de una aplicacion ejecutable en cualquier computador para el correcto funcionamiento del juego. El juego dispondra de memorias RAM y ROM, ademas de contar con distintos modulos de manejo de perifericos. Por ultimo, se utilizara un modulo completo de UART para realizar la comunicacion serial.
 
+> **Estado de esta revision:** la jerarquia SoC y el flujo de juego descritos
+> a continuacion son la arquitectura objetivo, no una afirmacion de que ya
+> esten integrados. El arbol actual no contiene el top SoC ni el programa
+> ensamblador. El CPU se considera funcional segun el equipo y no se modifica
+> en este ajuste.
+
 ## Objetivos del diseño
 
 ### Objetivo general
@@ -39,7 +45,12 @@ Bajo este esquema, todo el comportamiento específico del juego —colocación d
 
 ![Jerarquía de módulos](https://github.com/ee-herrerar/EL3313-Proyecto-3/blob/1184339ff9c93fc59122d0748abf84779cb6c830/docs/dise%C3%B1o/Imagenes/batalla_naval_diseno_general.svg)
 
-`basys3_top.sv` instancia `sistema_computo.sv`, que a su vez integra `riscv_core.sv`, `rom.sv`, `ram.sv`, `bus_interconnect.sv` y los periféricos (`uart_periph.sv`, `vga_periph.sv`, `player1_input.sv`, `display_7seg.sv`, `led_estado.sv`, `buzzer_pwm.sv`). Cada periférico agrupa a su vez sus propios submódulos internos (por ejemplo `uart_periph.sv` contiene a `baud_gen.sv`, `uart_tx.sv` y `uart_rx.sv`; `vga_periph.sv` contiene a `vga_sync.sv`, `tile_map_ram.sv` y `tile_renderer.sv`), de forma que cada bloque pueda verificarse de manera aislada antes de integrarse al resto del sistema.
+La jerarquia objetivo propone que un top Basys 3 instancie el SoC y que este
+conecte CPU, memorias, interconexion y perifericos. En el arbol actual existen
+el CPU, los perifericos VGA/GPIO/display/buzzer y UART por separado, pero aun
+no existen el top SoC, el interconnect ni las memorias de sistema. Los nombres
+del diagrama representan bloques propuestos; deben ajustarse a los nombres
+reales de los modulos al completar la integracion.
 
 
 ## Microprocesador RISC-V
@@ -396,7 +407,7 @@ Diagrama segundo nivel sistema de periféricos
 
 ### Entradas del Jugador 1
 
-a) Nombre del módulo: j1_input (instancia sync y debouncer)
+a) Nombre del módulo: `j1_input` (instancia `sync` y `debouncer`)
 
 b) 
 
@@ -404,25 +415,25 @@ b)
 
 Diagrama tercer nivel
 
-c) Objetivo: entregar al CPU, en un único registro de 32 bits legible por lw, el estado ya sincronizado y filtrado de rebotes de los 6 controles físicos del Jugador 1 (arriba, abajo, izquierda, derecha, OK/rotar, reiniciar).
+c) Objetivo: entregar al CPU, en un único registro de 32 bits legible por `lw`, el estado ya sincronizado y filtrado de rebotes de los siete controles físicos del Jugador 1.
 
 d) 
 | entradas | descripcion |
 |-----|---------|
 | clk_i, rst_i| Reloj de sistema y reset |
-| btns_in[5:0] |	Señales físicas crudas de los pulsadores |
+| btns_in[6:0] | Señales físicas crudas: arriba, abajo, izquierda, derecha, seleccionar, confirmar y reiniciar |
 | write_enable_i, addr_i[1:0], wdata_i[31:0] | 	Bus estándar (no se usan para escritura; periférico de solo lectura) |
 
 e)  
 | salidas | descripcion |
 |-----|---------|
-|rdata_o[31:0]	| 	{26'b0, btns_debounced[5:0]} en addr_i=00 |
+|rdata_o[31:0]	| 	`{25'b0, btns_debounced[6:0]}` en `addr_i=00` |
 
 f) Relación con otros módulos: es consumido exclusivamente por el programa en ensamblador (subrutina leer_botones), que lee este registro por polling. No depende de ningún otro periférico.
 
 #### Debouncing
 
-g) El sincronizador de dos etapas resuelve la metaestabilidad de las 6 entradas asíncronas. El filtro antirrebote —replicado 6 veces mediante generate— solo actualiza btn_out[i] cuando la entrada se mantiene estable durante 2²⁰−1 ciclos consecutivos (~10.5 ms a 100 MHz), reiniciando el conteo cada vez que detecta un cambio. El resultado se expone de forma puramente combinacional en rdata_o.
+g) El sincronizador de dos etapas resuelve la metaestabilidad de las 7 entradas asíncronas. El filtro antirrebote —replicado 7 veces mediante generate— solo actualiza btn_out[i] cuando la entrada se mantiene estable durante 2²⁰−1 ciclos consecutivos (~10.5 ms a 100 MHz), reiniciando el conteo cada vez que detecta un cambio. El resultado se expone de forma puramente combinacional en rdata_o.
 
 #### Registro de estado
 
@@ -434,8 +445,8 @@ Ecuación de metaestabilidad: `t_estable = (2^20 − 1) / CLK_FREQ_HZ ≈ 10.49 
 | 1 | Abajo |
 | 2 | Izquierda |
 | 3 | Derecha |
-| 4 | BTN SEL |
-| 5 | BTN OK |
+| 4 | BTN SEL (rotación) |
+| 5 | BTN OK (confirmación) |
 | 6 | BTN RST |
 
 ### UART
@@ -633,6 +644,11 @@ h) Diseño — tabla de códigos de evento
 
 Generación de 25 MHz mediante PLL.
 
+Esta es la configuracion requerida para el SoC final. La demo existente
+`vga_top_dut_board` deriva el reloj VGA con un divisor RTL y solo se usa para
+la etapa de visualizacion; debe sustituirse por un PLL de Vivado en la
+integracion final.
+
 El sistema opera con tres dominios de reloj derivados del único reloj de 100 MHz de la FPGA mediante un PLL: `clk_100MHz` (núcleo, RAM, bus, periféricos de registros y puerto de escritura de `tile_map_ram`), `clk_pixel_25MHz` (dominio de video: `vga_sync`, `tile_renderer` y puerto de lectura de `tile_map_ram`) y el tick de baudios que `baud_gen` deriva internamente de `clk_100MHz` mediante un contador de división (115200 baudios). El único cruce real de dominio de reloj ocurre en `tile_map_ram`, resuelto por su estructura de doble puerto/doble reloj; el resto de los periféricos opera íntegramente en `clk_100MHz`, y las entradas asíncronas de botones se resuelven con el sincronizador de dos etapas del `debouncer`.
 
 
@@ -697,6 +713,7 @@ Formato general de trama: `STX(0x02) CMD(1B) LEN(1B) PAYLOAD(LEN bytes) CHK(1B) 
 
 | CMD | Mensaje | PAYLOAD |
 |-----|---------|---------|
+| 0x80 | Inicio de fase de colocación | — |
 | 0x81 | Colocación aceptada | `id_barco(1B)` |
 | 0x82 | Colocación rechazada | `id_barco(1B)`, `motivo(1B: 0=traslape, 1=fuera_de_tablero)` |
 | 0x83 | Inicio de fase de batalla | — |
@@ -721,13 +738,68 @@ Cualquier byte recibido que no complete una trama válida (delimitadores correct
 
 ## Aplicación de PC
 
-La aplicación se organiza en tres módulos:
+La aplicacion vive en `pc_app/battleship_uart.py`; el codec compartido esta en
+`pc_app/uart_protocol.py`. `vga_interactive.py` se conserva como herramienta
+separada para la etapa de prueba del mapa de tiles y no participa en el juego
+por UART.
 
-- **Comunicación serial (`pyserial`):** abre el puerto configurado a 115200 baudios y expone `enviar_trama(cmd, payload)` y `recibir_trama()`, que arman y parsean el formato `STX/CMD/LEN/PAYLOAD/CHK/ETX` definido en Protocolo de comunicación UART. La recepción corre en un hilo independiente para no bloquear la interfaz mientras se espera respuesta de la FPGA.
-- **Estado del juego:** mantiene dos matrices 8×8, `tablero_propio` (posición real de los barcos del Jugador 2 y disparos recibidos) y `tablero_rival` (únicamente impactos y fallos de los disparos propios, inicializado como "desconocido"), actualizadas cada vez que llega una trama FPGA→PC.
-- **Interfaz de usuario (consola):** despliega ambos tableros, solicita la colocación de cada barco validando localmente que fila/columna estén en el rango 0–7 antes de transmitir, reintenta la solicitud si la FPGA responde "colocación rechazada", indica de quién es el turno activo, solicita la casilla a disparar cuando corresponde al Jugador 2, y muestra el resultado de cada disparo y el resumen final de la partida.
+La terminal abre el puerto a 115200 baudios, valida el rango de coordenadas,
+codifica y recupera tramas binarias, muestra ambos tableros y presenta los
+eventos notificados por la FPGA. La FPGA sigue siendo la autoridad para
+aceptar barcos, detectar impactos, cambiar turnos y decidir la victoria. La
+terminal no valida solapamientos ni calcula reglas del juego.
 
-El flujo será el siguiente: conectar puerto serie → ciclo de colocación (enviar barco, esperar `0x81`/`0x82`, repetir hasta 3 barcos) → esperar `0x83` (inicio de batalla) → ciclo de batalla (mostrar tableros, atender `0x84` de cambio de turno, enviar disparo propio cuando corresponde, procesar `0x85`/`0x86`) → recibir `0x87` (fin de partida) → mostrar resumen → esperar nueva partida.
+Para dar tiempo al firmware de vaciar el registro RX de un byte, la terminal
+separa por defecto los bytes transmitidos por 2 ms; este valor puede ajustarse
+con `--inter-byte-delay`. La tasa efectiva es menor que la UART fisica y debe
+validarse con el firmware final. El periférico actual no expone una bandera de
+overrun, por lo que no puede confirmar que un byte RX anterior no haya sido
+reemplazado si el CPU no lo leyó a tiempo.
+
+Ejecucion desde la raiz del repositorio:
+
+```bash
+python -m pip install -r pc_app/requirements.txt
+python pc_app/battleship_uart.py --port COM5
+```
+
+Abra la terminal antes de que el firmware emita `0x80`; si el evento de inicio
+ya se transmitio, reinicie la partida con BTN RST. La terminal espera `0x80`
+para solicitar los tres barcos; envia cada
+colocacion y espera `0x81` o `0x82`, repitiendo en caso de rechazo. Luego
+atiende `0x83` y `0x84`; cuando el turno es del Jugador 2 solicita un disparo.
+Las tramas `0x85` y `0x86` actualizan las vistas privadas y `0x87` presenta el
+resumen final. El formato y los codigos deben implementarse de forma identica
+en el programa ensamblador.
+
+## Configuracion por etapas y estado del repositorio
+
+La configuracion de Vivado se separa por top-level. La etapa VGA selecciona
+`vga_top_dut_board` y carga unicamente
+`constraints/vga_top_dut_basys3.xdc`; este top genera una imagen de prueba y
+no conecta el CPU, los botones de juego ni el UART. La terminal UART es una
+aplicacion de PC y `uart_top` sigue siendo un periférico, no un top fisico.
+En el arbol actual no aparecen `sistema_computo.sv`, un top SoC Basys 3 ni el
+programa ensamblador del juego. Por eso no se crea un XDC final con puertos
+supuestos: debe generarse despues de acordar los puertos reales del top de
+integracion. El resumen de seleccion esta en `constraints/README.md`.
+
+### Estructura sugerida del medio informe
+
+1. **Alcance y estado:** requisitos del proyecto, bloques disponibles y
+  pendientes; el CPU existente se conserva fuera de este reajuste.
+2. **Arquitectura e interfaces:** diagrama top-down, mapas de memoria,
+  puertos de periféricos y fronteras entre CPU, memorias, VGA, UART y GPIO.
+3. **Configuracion por etapas:** top-level y XDC usados en cada demo de
+  Vivado, reloj/reset, dispositivos conectados y criterios de avance.
+4. **Protocolo PC-FPGA:** formato de trama, comandos, checksum, ritmo de
+  transmision y responsabilidad del firmware frente a la terminal.
+5. **Verificacion prevista:** bancos de prueba, casos de borde, evidencias de
+  VGA/UART y comprobaciones en tarjeta, sin presentar como medidos resultados
+  que aun no se han obtenido.
+6. **Riesgos y trabajo pendiente:** integracion del SoC, firmware, XDC final,
+   sincronizacion/overrun UART, asignacion de siete controles sobre la Basys 3
+   y validacion post-implementacion.
 
 Ver diagrama de flujo de la aplicación en `docs/diseño/Imagenes` (pestaña "Flujo programa principal" del archivo `Proyecto3_BatallaNaval_Diagramas.drawio`, adaptable al flujo de `main.py`).
 

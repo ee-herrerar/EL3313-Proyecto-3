@@ -1,4 +1,5 @@
-## Basys 3: top = vga_top_dut_board
+## Etapa de demostracion VGA: top = vga_top_dut_board
+## No aplicar a una futura integracion SoC; los puertos son distintos.
 
 ## Clock 100 MHz
 set_property -dict { PACKAGE_PIN W5 IOSTANDARD LVCMOS33 } [get_ports clk100mhz]

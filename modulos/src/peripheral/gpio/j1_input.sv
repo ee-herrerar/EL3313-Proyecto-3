@@ -9,15 +9,15 @@ module j1_input (
     output logic [31:0] rdata_o,
 
     // Entradas físicas desde la tarjeta
-    //Arriba, Abajo, Izquierda, Derecha, OK/Rotar, Reiniciar
-    input  logic [5:0]  btns_in
+    // Bits: arriba, abajo, izquierda, derecha, seleccionar, confirmar, reiniciar.
+    input  logic [6:0]  btns_in
 );
 
     // 1. Sincronización de entradas asíncronas
-    logic [5:0] btns_sync;
+    logic [6:0] btns_sync;
     
     sync #(
-        .N(6)
+        .N(7)
     ) sync_btns (
         .clk          (clk_i),
         .reset        (rst_i),
@@ -26,10 +26,10 @@ module j1_input (
     );
 
     // 2. Filtro Anti-Rebotes (Debouncing)
-    logic [5:0] btns_debounced;
+    logic [6:0] btns_debounced;
 
     debouncer #(
-        .N(6)
+        .N(7)
     ) debounce_btns (
         .clk     (clk_i),
         .reset   (rst_i),
@@ -44,7 +44,7 @@ module j1_input (
         // Cuando write_enable_i=0, la lectura se realiza por rdata_o
         if (!write_enable_i) begin
             case (addr_i)
-                2'b00: rdata_o = {26'b0, btns_debounced}; // Registro de Estado
+                2'b00: rdata_o = {25'b0, btns_debounced}; // Registro de Estado
                 default: rdata_o = 32'b0;
             endcase
         end
