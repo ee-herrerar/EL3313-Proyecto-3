@@ -26,6 +26,18 @@ El objetivo general es lograr el correcto funcionamiento de un videojuego que no
 
 
 ## Arquitectura general del sistema
+## Diagramas por nivel
+### Primer nivel
+
+![Diagrama de primer nivel](./Imagenes/EL3313-P3-Diagramas-PrimerNivel.svg)
+
+### Segundo nivel
+
+![Diagrama de segundo nivel](./Imagenes/EL3313-P3-Diagramas-SegundoNivel.svg)
+
+### Tercer nivel
+
+![Diagrama de tercer nivel](./Imagenes/EL3313-P3-Diagramas-TercerNivel.svg)
 
 ### Diagrama top-down
 
