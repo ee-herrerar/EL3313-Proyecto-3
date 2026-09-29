@@ -1,6 +1,13 @@
 module cpu (
     input logic clk,
-    input logic rst
+    input logic rst,
+    input logic [31:0] ProgInstr_i,
+    output logic [31:0] ProgAddress_o,
+    input logic [31:0] DataIn_i,
+    output logic [31:0] DataAddress_o,
+    output logic [31:0] DataOut_o,
+    output logic [2:0] DataFunct3_o,
+    output logic DataWriteEnable_o
 );
 
     // ======================
@@ -22,7 +29,9 @@ module cpu (
     // ======================
     // DATAPATH
     // ======================
-    datapath dp(
+    datapath #(
+        .EXTERNAL_MEMORY(1'b1)
+    ) dp(
         .clk(clk),
         .rst(rst),
 
@@ -33,12 +42,20 @@ module cpu (
         .ALUControl(ALUControl),
         .ImmSrc(ImmSrc),
         .PCSrc(PCSrc),
+        .ProgInstr_i(ProgInstr_i),
+        .DataReadData_i(DataIn_i),
 
         .PC(PC),
         .Instr(Instr),
         .zero(zero),
-        .less(less)
+        .less(less),
+        .DataAddress_o(DataAddress_o),
+        .DataWriteData_o(DataOut_o),
+        .DataFunct3_o(DataFunct3_o),
+        .DataWriteEnable_o(DataWriteEnable_o)
     );
+
+    assign ProgAddress_o = PC;
 
     // ======================
     // CONTROL UNIT

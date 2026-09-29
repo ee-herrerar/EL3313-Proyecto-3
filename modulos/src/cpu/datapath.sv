@@ -1,4 +1,6 @@
-module datapath(
+module datapath #(
+    parameter bit EXTERNAL_MEMORY = 1'b0
+)(
     input logic clk,
     input logic rst,
 
@@ -10,10 +12,16 @@ module datapath(
     input logic [3:0] ALUControl,
     input logic [3:0] ImmSrc,
     input logic [1:0] PCSrc, 
+    input logic [31:0] ProgInstr_i,
+    input logic [31:0] DataReadData_i,
     output logic [31:0] PC,
     output logic [31:0] Instr,
     output logic zero,
-    output logic less
+    output logic less,
+    output logic [31:0] DataAddress_o,
+    output logic [31:0] DataWriteData_o,
+    output logic [2:0] DataFunct3_o,
+    output logic DataWriteEnable_o
 );
 
     // ======================
@@ -27,6 +35,8 @@ module datapath(
     logic [31:0] ImmExt;
     logic [31:0] Result;
     logic [31:0] ReadData;
+    logic [31:0] InternalInstr;
+    logic [31:0] InternalReadData;
     
 
     // ======================
@@ -53,7 +63,7 @@ module datapath(
     // ======================
     instr_mem u_imem(
         .A(PC),
-        .RD(Instr)
+        .RD(InternalInstr)
     );
 
     // ======================
@@ -110,6 +120,8 @@ module datapath(
         .less(less)
     );
 
+    assign Instr = EXTERNAL_MEMORY ? ProgInstr_i : InternalInstr;
+
     // ======================
     // Result MUX
     // ======================
@@ -136,7 +148,8 @@ module datapath(
     );
 
     // ======================
-    // Memoria de datos
+    // Memoria de datos local para los testbenches del datapath. En el SoC,
+    // EXTERNAL_MEMORY selecciona los buses externos hacia la interconexion.
     // ======================
     data_mem u_dmem(
     .clk(clk),
@@ -144,8 +157,14 @@ module datapath(
     .WE(MemWrite),
     .A(ALUResult),
     .WD(RD2),
-    .RD(ReadData)
+    .RD(InternalReadData)
 );
+
+assign ReadData = EXTERNAL_MEMORY ? DataReadData_i : InternalReadData;
+assign DataAddress_o = ALUResult;
+assign DataWriteData_o = RD2;
+assign DataFunct3_o = Instr[14:12];
+assign DataWriteEnable_o = MemWrite;
 
 assign ALUResult_jalr = {ALUResult[31:1], 1'b0};
 

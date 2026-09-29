@@ -62,6 +62,9 @@ always @(*) begin
             endcase
         end
 
+        // LUI: pasa el inmediato U directamente al resultado.
+        2'b11: ALUControl = 4'b1010;
+
         default: ALUControl = 4'b0000;
 
     endcase

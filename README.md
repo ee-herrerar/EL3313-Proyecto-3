@@ -35,9 +35,10 @@ colocacion. El firmware de la FPGA debe implementar el mismo protocolo descrito 
 ## Vivado y Basys 3
 
 La restricción `constraints/vga_top_dut_basys3.xdc` corresponde solo al
-top-level `vga_top_dut_board`, usado para la demostración de video. No
-seleccione ese XDC para un SoC. El repositorio aún no contiene un top-level
-SoC Basys 3 ni el XDC final de botones, UART, displays, LED y buzzer.
+top-level `vga_top_dut_board`, usado para la demostración de video. Para la
+integración general debe seleccionarse `modulos/src/top/soc_top.sv` como top y
+`constraints/ConstraintsTop.xdc` como archivo de restricciones.
 
-No se documenta un flujo de síntesis final hasta que se incorpore ese top y se
-defina el mapeo de pines de sus puertos.
+El top general incorpora el armazón de CPU y los periféricos de placa. La
+interconexión completa del bus del CPU con esos periféricos sigue siendo una
+etapa posterior.
