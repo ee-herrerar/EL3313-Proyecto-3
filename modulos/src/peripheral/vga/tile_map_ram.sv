@@ -2,8 +2,9 @@ module tile_map_ram (
     // Puerto A: CPU (100 MHz)
     input  logic        clk_cpu_i,
     input  logic        write_enable_i,
-        input  logic [8:0]  addr_cpu_i,     // 9 bits para indexar hasta 512 posiciones
+    input  logic [8:0]  addr_cpu_i,     // 9 bits para indexar hasta 512 posiciones
     input  logic [31:0] wdata_i,
+    output logic [31:0] rdata_cpu_o,
     
     // Puerto B: VGA (25 MHz)
     input  logic        clk_vga_i,
@@ -13,6 +14,8 @@ module tile_map_ram (
 
     // Memoria inferida como Block RAM (BRAM)
     logic [31:0] vram [0:511]; 
+
+    assign rdata_cpu_o = vram[addr_cpu_i];
 
     // Inicialización opcional en negro/agua (0x00000000)
     initial begin

@@ -8,6 +8,7 @@ module vga_periph_tb();
     logic        write_enable_i;
     logic [31:0] addr_i;
     logic [31:0] wdata_i;
+    logic [31:0] rdata_cpu_o;
 
     // Señales VGA
     logic        clk_vga_i;
@@ -23,6 +24,7 @@ module vga_periph_tb();
         .write_enable_i (write_enable_i),
         .addr_i         (addr_i),
         .wdata_i        (wdata_i),
+        .rdata_cpu_o    (rdata_cpu_o),
         .clk_vga_i      (clk_vga_i),
         .hsync_o        (hsync_o),
         .vsync_o        (vsync_o),
@@ -52,6 +54,18 @@ module vga_periph_tb();
         wdata_i = 32'b000; // Agua
         
         @(posedge clk_cpu_i);
+        #1;
+        if (rdata_cpu_o !== 32'b0)
+            $fatal(1, "VGA CPU readback mismatch: %h", rdata_cpu_o);
+        write_enable_i = 0;
+
+        @(negedge clk_cpu_i);
+        write_enable_i = 1;
+        wdata_i = 32'h0000_0005;
+        @(posedge clk_cpu_i);
+        #1;
+        if (rdata_cpu_o !== 32'h0000_0005)
+            $fatal(1, "VGA CPU readback did not return written tile: %h", rdata_cpu_o);
         write_enable_i = 0;
 
         // 2. Ejecutar la simulación durante el inicio de un frame activo

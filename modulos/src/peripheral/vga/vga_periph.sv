@@ -5,6 +5,7 @@ module vga_periph (
     input  logic        write_enable_i,
     input  logic [31:0] addr_i,     // El procesador enviará la dirección completa
     input  logic [31:0] wdata_i,
+    output logic [31:0] rdata_cpu_o,
 
     // Reloj generado por PLL para el VGA (25 MHz)
     input  logic        clk_vga_i,
@@ -36,6 +37,7 @@ module vga_periph (
         .write_enable_i (write_enable_i),
         .addr_cpu_i     (word_addr_cpu),
         .wdata_i        (wdata_i),
+        .rdata_cpu_o    (rdata_cpu_o),
         
         .clk_vga_i      (clk_vga_i),
         .addr_vga_i     (tile_addr_read),

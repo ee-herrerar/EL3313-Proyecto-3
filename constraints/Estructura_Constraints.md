@@ -12,6 +12,7 @@ cargue todos los XDC del directorio en un mismo proyecto.
 El XDC de demo VGA no debe reutilizarse para la integración final: sus nombres
 y puertos corresponden únicamente a `vga_top_dut_board`.
 
-El top general usa los cinco pulsadores y dos switches como las siete entradas
-del periférico GPIO. La conexión del buzzer se asigna a JA1 y la UART usa el
-puente USB-UART integrado de la Basys3.
+El top general asigna `btnC` al reset general; `btnU/D/L/R` son navegación,
+`sw[1]` es selección/rotación y `sw[0]` confirma. Los switches son entradas
+mantenidas y deben regresar a cero para generar otra acción. La conexión del
+buzzer se asigna a JA1 y la UART usa el puente USB-UART integrado de la Basys3.

@@ -1,15 +1,16 @@
 # EL3313 Proyecto 3: Batalla Naval
 
 Repositorio de trabajo para el proyecto de Batalla Naval sobre RISC-V y
-perifericos mapeados en memoria. El CPU se conserva como bloque existente; la
-integracion completa del SoC y el firmware del juego deben incorporarse para
-la demostracion final.
+perifericos mapeados en memoria. El top `soc_top` integra el CPU, ROM, RAM,
+interconnect MMIO y periféricos; el firmware del juego se encuentra en
+`modulos/ensamblador/batalla_naval.s`.
 
 ## Estructura actual
 
 - `modulos/src/cpu/`: núcleo y bloques del procesador.
 - `modulos/src/peripheral/`: periféricos GPIO, display, buzzer y VGA.
 - `modulos/src/uart/`: transmisor, receptor y periférico UART.
+- `modulos/src/top/`: SoC Basys3, interconnect y generación del reloj VGA.
 - `modulos/tb/`: bancos de prueba existentes.
 - `pc_app/vga_interactive.py`: consola de prueba del mapa de tiles VGA.
 - `pc_app/battleship_uart.py`: terminal serial del Jugador 2.

@@ -8,6 +8,7 @@ set_property -dict { PACKAGE_PIN W5 IOSTANDARD LVCMOS33 } [get_ports clk100mhz]
 create_clock -name sys_clk -period 10.000 -waveform {0 5} [get_ports clk100mhz]
 
 ## Pushbuttons, active high
+## btnC is the system reset; btnU/D/L/R map to GPIO bits 5:2.
 set_property -dict { PACKAGE_PIN U18 IOSTANDARD LVCMOS33 } [get_ports btnC]
 set_property -dict { PACKAGE_PIN T18 IOSTANDARD LVCMOS33 } [get_ports btnU]
 set_property -dict { PACKAGE_PIN U17 IOSTANDARD LVCMOS33 } [get_ports btnD]
@@ -15,6 +16,7 @@ set_property -dict { PACKAGE_PIN W19 IOSTANDARD LVCMOS33 } [get_ports btnL]
 set_property -dict { PACKAGE_PIN T17 IOSTANDARD LVCMOS33 } [get_ports btnR]
 
 ## User switches
+## GPIO bit 0 = confirm (sw[0]); GPIO bit 1 = rotate (sw[1]).
 set_property -dict { PACKAGE_PIN V17 IOSTANDARD LVCMOS33 } [get_ports {sw[0]}]
 set_property -dict { PACKAGE_PIN V16 IOSTANDARD LVCMOS33 } [get_ports {sw[1]}]
 

@@ -4,11 +4,11 @@
 
 El siguiente proyecto es la creacion de un juego de "Batalla Naval", este se realiza con la combinacion de el lenguaje 'Assembly' con el HDL 'SystemVerilog' para la creacion de un procesador uniciclo con la arquitectura RISC-V y la logica de juego e interaccion con perifericos respectivamente, ademas de usar 'Python' para la creacion de una aplicacion ejecutable en cualquier computador para el correcto funcionamiento del juego. El juego dispondra de memorias RAM y ROM, ademas de contar con distintos modulos de manejo de perifericos. Por ultimo, se utilizara un modulo completo de UART para realizar la comunicacion serial.
 
-> **Estado de esta revision:** la jerarquia SoC y el flujo de juego descritos
-> a continuacion son la arquitectura objetivo, no una afirmacion de que ya
-> esten integrados. El arbol actual no contiene el top SoC ni el programa
-> ensamblador. El CPU se considera funcional segun el equipo y no se modifica
-> en este ajuste.
+> **Estado de esta revision:** el repositorio contiene `soc_top`, el
+> interconnect MMIO y el firmware `batalla_naval.s`. Los diagramas anteriores
+> muestran la propuesta inicial; el diagrama Mermaid de esta seccion refleja
+> el camino de datos del RTL integrado. La validacion en FPGA y post-
+> implementacion sigue pendiente.
 
 ## Objetivos del diseño
 
@@ -51,18 +51,50 @@ Bus de datos (compartido, mapeado en memoria). La memoria de datos (RAM) y todos
 
 El periférico VGA comparte el mismo bus eléctrico, pero se comporta como una memoria de video en lugar de un conjunto de registros de comando, por lo que requiere un campo de dirección más ancho que el resto de los periféricos.
 
+Es importante distinguir dos decodificaciones: `control_unit` decodifica el
+opcode/funct de cada instruccion para generar controles del CPU; el
+`soc_interconnect` decodifica `DataAddress_o` para seleccionar RAM o un
+periferico. El multiplexor de lectura del interconnect devuelve al CPU el
+`rdata` del destino seleccionado. La UART no esta en el camino de fetch: la
+ROM alimenta directamente el puerto de instrucciones del CPU, mientras que
+la UART conecta la aplicacion de PC al bus de datos mapeado en memoria.
+
+```mermaid
+flowchart LR
+  PCApp[Aplicacion PC, Jugador 2] <-->|UART serial| UART[Periferico UART]
+  CPU[CPU RV32I] -->|ProgAddress| ROM[ROM de instrucciones]
+  ROM -->|ProgInstr| CPU
+  CPU -->|direccion, write data, WE| BUS[Interconnect MMIO<br/>decoder de direcciones + mux de lectura]
+  BUS -->|WE/address| RAM[RAM de datos]
+  RAM -->|rdata| BUS
+  BUS -->|WE/address| UART
+  UART -->|rdata| BUS
+  BUS --> GPIO[GPIO botones]
+  GPIO -->|rdata| BUS
+  BUS --> DISP[Display 7 segmentos]
+  DISP -->|rdata| BUS
+  BUS --> LED[LED de estado]
+  LED -->|rdata| BUS
+  BUS --> BUZ[Buzzer]
+  BUZ -->|rdata| BUS
+  BUS -->|WE/address| VRAM[Memoria VGA mapeada]
+  VRAM -->|rdata| BUS
+  BUS -->|DataIn| CPU
+  VRAM --> RENDER[Sincronismo y renderer VGA]
+  RENDER --> MON[Monitor VGA, Jugador 1]
+```
+
 Bajo este esquema, todo el comportamiento específico del juego —colocación de barcos, turnos, validación de disparos, condición de victoria— reside exclusivamente en el programa ensamblador que se ejecuta sobre el procesador. El hardware permanece agnóstico a la aplicación: el mismo conjunto de bloques serviría para ejecutar cualquier otro programa rv32i que utilizara los mismos periféricos.
 
 ### Jerarquía de módulos
 
 ![Jerarquía de módulos](https://github.com/ee-herrerar/EL3313-Proyecto-3/blob/1184339ff9c93fc59122d0748abf84779cb6c830/docs/dise%C3%B1o/Imagenes/batalla_naval_diseno_general.svg)
 
-La jerarquia objetivo propone que un top Basys 3 instancie el SoC y que este
-conecte CPU, memorias, interconexion y perifericos. En el arbol actual existen
-el CPU, los perifericos VGA/GPIO/display/buzzer y UART por separado, pero aun
-no existen el top SoC, el interconnect ni las memorias de sistema. Los nombres
-del diagrama representan bloques propuestos; deben ajustarse a los nombres
-reales de los modulos al completar la integracion.
+El top `soc_top` instancia el CPU, la ROM, `soc_data_ram`, `soc_interconnect`,
+los periféricos mapeados y el generador PLL del reloj VGA. La ROM permanece
+conectada directamente a `ProgAddress_o`/`ProgInstr_i`; las lecturas y
+escrituras de datos pasan por `soc_interconnect`. Las escrituras se habilitan
+solo en el destino decodificado y las lecturas regresan por el mux de lectura.
 
 
 ## Microprocesador RISC-V
@@ -786,15 +818,14 @@ en el programa ensamblador.
 
 ## Configuracion por etapas y estado del repositorio
 
-La configuracion de Vivado se separa por top-level. La etapa VGA selecciona
-`vga_top_dut_board` y carga unicamente
-`constraints/vga_top_dut_basys3.xdc`; este top genera una imagen de prueba y
-no conecta el CPU, los botones de juego ni el UART. La terminal UART es una
-aplicacion de PC y `uart_top` sigue siendo un periférico, no un top fisico.
-En el arbol actual no aparecen `sistema_computo.sv`, un top SoC Basys 3 ni el
-programa ensamblador del juego. Por eso no se crea un XDC final con puertos
-supuestos: debe generarse despues de acordar los puertos reales del top de
-integracion. El resumen de seleccion esta en `constraints/README.md`.
+La configuracion de Vivado se separa por top-level. La demo VGA selecciona
+`vga_top_dut_board` con `constraints/vga_top_dut_basys3.xdc`; no integra CPU,
+botones del juego ni UART. La integracion Basys 3 selecciona `soc_top` con
+`constraints/ConstraintsTop.xdc`. Este XDC asigna `btnC` a reset, los cuatro
+botones direccionales a navegacion y `sw[1:0]` a rotacion/confirmacion. La
+terminal UART es una aplicacion de PC; `uart_top` es un periferico, no un top
+fisico. El resumen de seleccion y el mapa de controles estan en
+`constraints/README.md`.
 
 ### Estructura sugerida del medio informe
 
@@ -809,9 +840,9 @@ integracion. El resumen de seleccion esta en `constraints/README.md`.
 5. **Verificacion prevista:** bancos de prueba, casos de borde, evidencias de
   VGA/UART y comprobaciones en tarjeta, sin presentar como medidos resultados
   que aun no se han obtenido.
-6. **Riesgos y trabajo pendiente:** integracion del SoC, firmware, XDC final,
-   sincronizacion/overrun UART, asignacion de siete controles sobre la Basys 3
-   y validacion post-implementacion.
+6. **Riesgos y trabajo pendiente:** validar el flujo completo del juego,
+   gestionar overrun UART, revisar inferencia de la memoria VGA y completar
+   simulacion post-implementacion y pruebas en la tarjeta.
 
 Ver diagrama de flujo de la aplicación en `docs/diseño/Imagenes` (pestaña "Flujo programa principal" del archivo `Proyecto3_BatallaNaval_Diagramas.drawio`, adaptable al flujo de `main.py`).
 

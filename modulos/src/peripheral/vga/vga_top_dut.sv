@@ -18,6 +18,7 @@ module vga_top_dut (
         .write_enable_i (write_enable_i),
         .addr_i         (addr_i),
         .wdata_i        (wdata_i),
+        .rdata_cpu_o    (),
         .clk_vga_i      (clk_vga_i),
         .hsync_o        (hsync_o),
         .vsync_o        (vsync_o),
