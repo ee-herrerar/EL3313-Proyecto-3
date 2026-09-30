@@ -4,12 +4,6 @@
 
 El siguiente proyecto es la creacion de un juego de "Batalla Naval", este se realiza con la combinacion de el lenguaje 'Assembly' con el HDL 'SystemVerilog' para la creacion de un procesador uniciclo con la arquitectura RISC-V y la logica de juego e interaccion con perifericos respectivamente, ademas de usar 'Python' para la creacion de una aplicacion ejecutable en cualquier computador para el correcto funcionamiento del juego. El juego dispondra de memorias RAM y ROM, ademas de contar con distintos modulos de manejo de perifericos. Por ultimo, se utilizara un modulo completo de UART para realizar la comunicacion serial.
 
-> **Estado de esta revision:** la jerarquia SoC y el flujo de juego descritos
-> a continuacion son la arquitectura objetivo, no una afirmacion de que ya
-> esten integrados. El arbol actual no contiene el top SoC ni el programa
-> ensamblador. El CPU se considera funcional segun el equipo y no se modifica
-> en este ajuste.
-
 ## Objetivos del diseño
 
 ### Objetivo general
