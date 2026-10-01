@@ -109,6 +109,7 @@ module soc_top (
     );
 
     instr_mem u_program_rom (
+        .clk (clk100mhz),
         .A  (prog_address),
         .RD (prog_instr)
     );

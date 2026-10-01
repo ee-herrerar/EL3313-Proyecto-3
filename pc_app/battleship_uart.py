@@ -12,6 +12,7 @@ from uart_protocol import Command, Frame, FrameParser, encode_frame
 BOARD_SIZE = 8
 SHIP_LENGTHS = (4, 3, 2)
 UNKNOWN = "?"
+UART_BAUD_RATE = 115_200
 
 
 def blank_board() -> list[list[str]]:
@@ -162,7 +163,7 @@ class BattleshipTerminal:
                     break
 
     def run(self) -> None:
-        print("Esperando eventos de la FPGA; Ctrl+C termina la aplicacion.")
+        print("Esperando evento de colocacion de la FPGA (0x80); Ctrl+C termina la aplicacion.")
         while True:
             frame = self.read_frame()
             if frame.command == Command.PLACEMENT_START and not frame.payload:
@@ -175,10 +176,34 @@ class BattleshipTerminal:
                 self.handle_event(frame)
 
 
+def show_serial_ports(ports) -> None:
+    if not ports:
+        print("No se detectaron puertos seriales.")
+        return
+    for index, port in enumerate(ports, start=1):
+        description = port.description or "Sin descripcion"
+        print(f"{index}. {port.device} - {description}")
+
+
+def select_serial_port(ports) -> str | None:
+    if not ports:
+        print("No se detectaron puertos seriales. Conecte la Basys 3 e intente de nuevo.")
+        return None
+
+    show_serial_ports(ports)
+    while True:
+        selection = input("Seleccione el numero del puerto (o q para cancelar): ").strip()
+        if selection.lower() == "q":
+            return None
+        if selection.isdigit() and 1 <= int(selection) <= len(ports):
+            return ports[int(selection) - 1].device
+        print(f"Elija un numero entre 1 y {len(ports)}, o q para cancelar.")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Terminal serial para el Jugador 2")
-    parser.add_argument("--port", required=True, help="Puerto serial, por ejemplo COM5")
-    parser.add_argument("--baud", type=int, default=115200)
+    parser.add_argument("--port", help="Puerto serial; si se omite, se muestra una lista")
+    parser.add_argument("--list-ports", action="store_true", help="Lista los puertos seriales y termina")
     parser.add_argument(
         "--inter-byte-delay",
         type=float,
@@ -186,22 +211,37 @@ def main() -> int:
         help="Pausa entre bytes para permitir el polling del CPU (segundos)",
     )
     args = parser.parse_args()
-    if args.baud <= 0 or args.inter_byte_delay < 0:
-        parser.error("baud debe ser positivo y inter-byte-delay no puede ser negativo")
+    if args.inter_byte_delay < 0:
+        parser.error("inter-byte-delay no puede ser negativo")
 
     try:
         import serial
+        from serial.tools import list_ports
     except ImportError:
         print("Falta pyserial. Instale las dependencias con: pip install -r pc_app/requirements.txt")
         return 2
 
+    ports = sorted(list_ports.comports(), key=lambda port: port.device.casefold())
+    if args.list_ports:
+        show_serial_ports(ports)
+        return 0
+
     try:
-        with serial.Serial(args.port, args.baud, timeout=0.1) as serial_port:
+        port = args.port or select_serial_port(ports)
+    except (KeyboardInterrupt, EOFError):
+        print("\nSeleccion cancelada.")
+        return 0
+    if not port:
+        return 1
+
+    try:
+        with serial.Serial(port, UART_BAUD_RATE, timeout=0.1) as serial_port:
+            print(f"Conectado a {port} a {UART_BAUD_RATE} baudios (8N1).")
             BattleshipTerminal(serial_port, args.inter_byte_delay).run()
     except KeyboardInterrupt:
         print("\nAplicacion finalizada.")
     except serial.SerialException as error:
-        print(f"No se pudo abrir o mantener {args.port}: {error}", file=sys.stderr)
+        print(f"No se pudo abrir o mantener {port}: {error}", file=sys.stderr)
         return 1
     return 0
 

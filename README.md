@@ -20,16 +20,19 @@ la demostracion final.
 
 ## Aplicacion del Jugador 2
 
-Requiere Python 3.10 o posterior y una conexión USB-UART a 115200 baudios.
+Requiere Python 3.10 o posterior y una conexión USB-UART. La aplicación usa
+115200 baudios (8N1), igual que el periférico UART del SoC, y permite elegir
+el puerto detectado al iniciar.
 
 ```bash
 python -m pip install -r pc_app/requirements.txt
-python pc_app/battleship_uart.py --port COM5
+python pc_app/battleship_uart.py
 ```
 
-Cambie `COM5` por el puerto asignado por el sistema operativo. Abra la
-terminal antes de iniciar o reiniciar la partida para recibir el evento de
-colocacion. El firmware de la FPGA debe implementar el mismo protocolo descrito en
+Para listar los puertos sin iniciar la aplicación, ejecute
+`python pc_app/battleship_uart.py --list-ports`. Abra la terminal antes de
+iniciar o reiniciar la partida para recibir el evento de colocacion. El firmware
+de la FPGA debe implementar el mismo protocolo descrito en
 `docs/diseño/planteamiento.md` y notificar `0x80` para iniciar la colocación.
 
 ## Vivado y Basys 3
