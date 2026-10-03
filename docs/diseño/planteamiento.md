@@ -73,14 +73,66 @@ modulos/src/
 │   └── vga_clock_gen.sv
 └── uart/
   ├── uart_generador_baudios.sv
-  ├── uart_peripheral.sv, uart_rx.sv, uart_top.sv, uart_tx.sv
+  ├── uart_rx.sv, uart_top.sv, uart_tx.sv
+  └── uart_peripheral.sv (alternativo, no instanciado por soc_top)
 ```
 
-`soc_top` integra el CPU, la ROM de instrucciones, la RAM del SoC y los
-periféricos. La decodificación de direcciones y el multiplexor de lectura
-están descritos dentro de este top; no hay un módulo independiente
-`bus_interconnect`. `vga_top_dut_board` es un top separado para la demostración
-VGA y no forma parte de la jerarquía de `soc_top`.
+#### Jerarquía RTL activa de `soc_top`
+
+```text
+soc_top
+├── u_vga_clock: vga_clock_gen
+│   └── u_clk_wiz_0: clk_wiz_0 [IP requerido]
+├── u_program_rom: instr_mem
+│   └── u_bram_inst: batalla_naval_mem [IP requerido]
+├── u_cpu: cpu
+│   ├── dp: datapath
+│   │   ├── u_pc, u_pc4, u_pctarget, u_alumux, u_alu
+│   │   ├── u_regfile, u_extend, u_resultmux, u_pcmux
+│   │   └── u_imem y u_dmem [memorias locales no usadas en modo SoC]
+│   └── cu: control_unit
+│       ├── md: main_decoder
+│       └── ad: alu_decoder
+├── u_data_ram: soc_data_ram
+├── u_gpio: j1_input
+│   ├── sync_btns: sync
+│   └── debounce_btns: debouncer
+├── u_led: led_perifico
+│   └── u_status_led: status_led
+├── u_display: display_7seg
+│   └── u_seven_seg: seven_seg_mux
+├── u_buzzer: buzzer_perifico
+│   └── u_buzzer: buzzer_driver
+├── u_uart: uart_top
+│   ├── baud_gen: uart_generador_baudios
+│   ├── rx_inst: uart_rx
+│   └── tx_inst: uart_tx
+└── u_vga: vga_periph
+    ├── u_vram: tile_map_ram
+    ├── u_sync: vga_sync
+    └── u_renderer: tile_renderer
+```
+
+El decodificador de direcciones y el multiplexor combinacional de lectura están
+descritos dentro de `soc_top`; no hay un módulo independiente
+`bus_interconnect`. `uart_peripheral` también declara una implementación UART
+con instancias internas de RX/TX y generador de baudios, pero no se instancia
+en esta jerarquía: la instancia activa del SoC es `uart_top`. Puede conservarse
+como fuente para su testbench, sin seleccionarla como parte de la síntesis del
+SoC.
+
+`vga_top_dut_board` y `vga_top_dut` corresponden a una jerarquía independiente
+de demostración VGA, no a hijos de `soc_top`. Los módulos `ALUMux`,
+`MemoryMux`, `PCPlus4` y `SumPCTarget` tampoco se instancian en el datapath
+actual, que utiliza `mux21`, `mux41` y `adder`. Se pueden excluir del fileset
+de síntesis del SoC, pero deben seguir disponibles en los filesets de
+simulación que ejecutan sus testbenches.
+
+Esta jerarquía describe las instancias RTL, no acredita por sí sola que la
+síntesis y la implementación estén cerradas. `clk_wiz_0` y
+`batalla_naval_mem` requieren sus IP de Vivado; el repositorio no contiene un
+`.xpr` ni las configuraciones de esos IP. Véase la sección Configuración de
+Vivado para el estado de restricciones y los pendientes de reproducibilidad.
 
 
 ## Microprocesador RISC-V
@@ -474,11 +526,11 @@ salidas VGA; no es un registro de lectura dentro del multiplexor `data_read` de
 c) Objetivo: entregar al CPU, en un único registro de 32 bits legible por `lw`, el estado ya sincronizado y filtrado de rebotes de los siete controles físicos del Jugador 1.
 
 d) 
-| entradas | descripcion |
-|-----|---------|
-| clk_i, rst_i| Reloj de sistema y reset |
-| btns_in[6:0] | Señales físicas crudas: arriba, abajo, izquierda, derecha, seleccionar, confirmar y reiniciar |
-| write_enable_i, addr_i[1:0], wdata_i[31:0] | 	Bus estándar (no se usan para escritura; periférico de solo lectura) |
+| Entradas | Descripción |
+|---|---|
+| `clk_i`, `rst_i` | Reloj de sistema y reset. |
+| `btns_in[6:0]` | Siete señales físicas sincronizadas y filtradas; el mapeo efectivo desde los puertos de `soc_top` se detalla abajo. |
+| `write_enable_i`, `addr_i[1:0]`, `wdata_i[31:0]` | Interfaz estándar; el periférico es de solo lectura. |
 
 e)  
 | salidas | descripcion |
@@ -491,9 +543,9 @@ f) Relación con otros módulos: es consumido exclusivamente por el programa en 
 
 g) El sincronizador de dos etapas resuelve la metaestabilidad de las 7 entradas asíncronas. El filtro antirrebote —replicado 7 veces mediante generate— solo actualiza btn_out[i] cuando la entrada se mantiene estable durante 2²⁰−1 ciclos consecutivos (~10.5 ms a 100 MHz), reiniciando el conteo cada vez que detecta un cambio. El resultado se expone de forma puramente combinacional en rdata_o.
 
-#### Registro de estado
+#### Registro de estado y asignación física
 
-Ecuación de metaestabilidad: `t_estable = (2^20 − 1) / CLK_FREQ_HZ ≈ 10.49 ms` (a 100 MHz)
+El contrato funcional del periférico define el siguiente orden de bits:
 
 | Bit | Entrada |
 |-----|---------|
@@ -504,6 +556,31 @@ Ecuación de metaestabilidad: `t_estable = (2^20 − 1) / CLK_FREQ_HZ ≈ 10.49 
 | 4 | BTN SEL (rotación) |
 | 5 | BTN OK (confirmación) |
 | 6 | BTN RST |
+
+Sin embargo, la conexión actual en `soc_top` es
+`btns = {btnC, btnU, btnD, btnL, btnR, sw}`. Por tanto, el origen físico de
+cada bit que recibe `j1_input` es:
+
+| Bit de `btns_in` | Puerto físico actual |
+|---:|---|
+| 0 | `sw[0]` |
+| 1 | `sw[1]` |
+| 2 | `btnR` |
+| 3 | `btnL` |
+| 4 | `btnD` |
+| 5 | `btnU` |
+| 6 | `btnC` |
+
+Este cableado **no implementa el contrato funcional de la tabla anterior**
+para los bits 0–5: los switches ocupan las posiciones de arriba/abajo y los
+pulsadores de dirección/selección/confirmación quedan desplazados. Aunque se
+usan cinco pulsadores y dos switches para completar siete entradas, la
+correspondencia debe corregirse en RTL o acordarse explícitamente y verificarse
+antes de afirmar que navegación, selección y confirmación cumplen el enunciado.
+BTN RST queda en `btns_in[6]`, como espera la tabla.
+
+El filtro actual requiere `2^20 - 1` ciclos estables, equivalentes a
+`(2^20 - 1) / 100 MHz ≈ 10.49 ms` con el reloj de placa.
 
 ### UART
 
@@ -851,12 +928,19 @@ en el programa ensamblador.
 
 ## Configuración de Vivado
 
-Para la integración en la Basys 3, el top-level es `soc_top` y el archivo de
-restricciones correspondiente es `constraints/ConstraintsTop.xdc`. La demo
-VGA independiente usa `vga_top_dut_board` con
-`constraints/vga_top_dut_basys3.xdc`; ambos top-level tienen puertos y usos
-distintos. `uart_top` es un periférico instanciado por `soc_top`, no un top de
-placa.
+Para la integración RTL en Basys 3, seleccione `soc_top` y
+`constraints/ConstraintsTop.xdc`. La demo VGA independiente usa
+`vga_top_dut_board` con `constraints/vga_top_dut_basys3.xdc`; son tops con
+puertos y propósitos distintos, por lo que no se deben combinar sus XDC.
+`uart_top` es un periférico instanciado por `soc_top`, no un top de placa;
+`uart_peripheral` tampoco forma parte de la jerarquía activa.
+
+`ConstraintsTop.xdc` asigna pines, pero aún requiere `create_clock` para
+declarar el reloj de 100 MHz al análisis temporal. Para elaborar/sintetizar el
+SoC también deben estar disponibles los IP `clk_wiz_0` y
+`batalla_naval_mem`. El repositorio no incluye un archivo `.xpr` ni las
+configuraciones de dichos IP, por lo que la jerarquía RTL no basta para
+reproducir una implementación Vivado desde cero.
 
 Ver diagrama de flujo de la aplicación en `docs/diseño/Imagenes` (pestaña "Flujo programa principal" del archivo `Proyecto3_BatallaNaval_Diagramas.drawio`, adaptable al flujo de `main.py`).
 
