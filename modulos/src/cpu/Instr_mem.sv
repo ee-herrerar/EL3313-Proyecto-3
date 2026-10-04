@@ -1,20 +1,20 @@
 module instr_mem #(
     parameter DEPTH = 2048
 )(
-    input  logic [31:0] A,     // Dirección (PC)
-    output logic [31:0] RD     // Instrucción
+    input  logic        clk,    // Reloj del sistema/procesador
+    input  logic [31:0] A,      // Dirección (PC)
+    output logic [31:0] RD      // Instrucción leída de 32 bits
 );
 
-    logic [31:0] mem [0:DEPTH-1];
-
-    // Lectura combinacional
-    assign RD = mem[A[31:2]];
-
-    // Inicialización segura antes de cargar el programa.
-    initial begin
-        for (int i = 0; i < DEPTH; i = i + 1)
-            mem[i] = 32'h00000013; // nop
-        $readmemh("program.hex", mem);
-    end
+    // Instancia del Block Memory Generator IP
+    batalla_naval_mem u_bram_inst (
+        .clka  (clk),           // Reloj de la BRAM
+        .rsta  (1'b0),          // Reset activo alto, inactivo para la ROM
+        .ena   (1'b1),          // Memoria siempre habilitada
+        .wea   (1'b0),          // Deshabilitar escritura (solo lectura)
+        .addra (A[$clog2(DEPTH)+1:2]), // Dirección de palabra según profundidad
+        .dina  (32'h00000000),  // Sin uso para lectura
+        .douta (RD)             // Salida de la instrucción
+    );
 
 endmodule

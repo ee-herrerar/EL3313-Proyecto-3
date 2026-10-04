@@ -28,6 +28,7 @@ module datapath #(
     // Señales internas
     // ======================
     logic [31:0] PCplus4, PCTarget, PCnext;
+    logic [31:0] PCwrite;
     logic [31:0] RD1, RD2;
     logic [31:0] SrcB;
     logic [31:0] ALUResult;
@@ -37,6 +38,14 @@ module datapath #(
     logic [31:0] ReadData;
     logic [31:0] InternalInstr;
     logic [31:0] InternalReadData;
+    logic InstrValid;
+
+    always_ff @(posedge clk) begin
+        if (rst)
+            InstrValid <= 1'b0;
+        else
+            InstrValid <= ~InstrValid;
+    end
     
 
     // ======================
@@ -45,9 +54,11 @@ module datapath #(
     pc u_pc(
         .clk(clk),
         .rst(rst),
-        .PCnext(PCnext),
+        .PCnext(PCwrite),
         .PC(PC)
     );
+
+    assign PCwrite = InstrValid ? PCnext : PC;
 
     // ======================
     // PC + 4
@@ -62,6 +73,7 @@ module datapath #(
     // Instruction Memory
     // ======================
     instr_mem u_imem(
+        .clk(clk),
         .A(PC),
         .RD(InternalInstr)
     );
@@ -71,7 +83,7 @@ module datapath #(
     // ======================
     reg_file u_regfile(
         .clk(clk),
-        .WE3(RegWrite),
+        .WE3(RegWrite && InstrValid),
         .A1(Instr[19:15]),
         .A2(Instr[24:20]),
         .A3(Instr[11:7]),
@@ -154,7 +166,7 @@ module datapath #(
     data_mem u_dmem(
     .clk(clk),
     .funct3(Instr[14:12]),
-    .WE(MemWrite),
+    .WE(MemWrite && InstrValid),
     .A(ALUResult),
     .WD(RD2),
     .RD(InternalReadData)
@@ -164,7 +176,7 @@ assign ReadData = EXTERNAL_MEMORY ? DataReadData_i : InternalReadData;
 assign DataAddress_o = ALUResult;
 assign DataWriteData_o = RD2;
 assign DataFunct3_o = Instr[14:12];
-assign DataWriteEnable_o = MemWrite;
+assign DataWriteEnable_o = MemWrite && InstrValid;
 
 assign ALUResult_jalr = {ALUResult[31:1], 1'b0};
 

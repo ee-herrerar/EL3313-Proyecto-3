@@ -4,12 +4,6 @@
 
 El siguiente proyecto es la creacion de un juego de "Batalla Naval", este se realiza con la combinacion de el lenguaje 'Assembly' con el HDL 'SystemVerilog' para la creacion de un procesador uniciclo con la arquitectura RISC-V y la logica de juego e interaccion con perifericos respectivamente, ademas de usar 'Python' para la creacion de una aplicacion ejecutable en cualquier computador para el correcto funcionamiento del juego. El juego dispondra de memorias RAM y ROM, ademas de contar con distintos modulos de manejo de perifericos. Por ultimo, se utilizara un modulo completo de UART para realizar la comunicacion serial.
 
-> **Estado de esta revision:** el repositorio contiene `soc_top`, el
-> interconnect MMIO y el firmware `batalla_naval.s`. Los diagramas anteriores
-> muestran la propuesta inicial; el diagrama Mermaid de esta seccion refleja
-> el camino de datos del RTL integrado. La validacion en FPGA y post-
-> implementacion sigue pendiente.
-
 ## Objetivos del diseño
 
 ### Objetivo general
@@ -95,6 +89,88 @@ los periféricos mapeados y el generador PLL del reloj VGA. La ROM permanece
 conectada directamente a `ProgAddress_o`/`ProgInstr_i`; las lecturas y
 escrituras de datos pasan por `soc_interconnect`. Las escrituras se habilitan
 solo en el destino decodificado y las lecturas regresan por el mux de lectura.
+#### Organización actual de `modulos/src`
+
+```text
+modulos/src/
+├── cpu/
+│   ├── adder.sv, alu_decoder.sv, ALU.sv, ALUMux.sv
+│   ├── control_unit.sv, cpu.sv, datapath.sv, Extend.sv
+│   ├── data_mem.sv, Instr_mem.sv, program.hex, main_decoder.sv
+│   ├── MemoryMux.sv, mux21.sv, mux41.sv, pc.sv, PCPlus4.sv
+│   ├── reg_file.sv, SumPCTarget.sv
+├── peripheral/
+│   ├── buzzer/   buzzer_driver.sv, buzzer_perifico.sv
+│   ├── display/  display_7seg.sv, led.sv, seven_seg_mux.sv, status_led.sv
+│   ├── gpio/     debouncer.sv, j1_input.sv, sync.sv
+│   └── vga/      tile_map_ram.sv, tile_renderer.sv, vga_periph.sv,
+│                vga_sync.sv, vga_top_dut.sv, vga_top_dut_board.sv
+├── top/
+│   ├── soc_data_ram.sv
+│   ├── soc_top.sv
+│   └── vga_clock_gen.sv
+└── uart/
+  ├── uart_generador_baudios.sv
+  ├── uart_rx.sv, uart_top.sv, uart_tx.sv
+  └── uart_peripheral.sv (alternativo, no instanciado por soc_top)
+```
+
+#### Jerarquía RTL activa de `soc_top`
+
+```text
+soc_top
+├── u_vga_clock: vga_clock_gen
+│   └── u_clk_wiz_0: clk_wiz_0 [IP requerido]
+├── u_program_rom: instr_mem
+│   └── u_bram_inst: batalla_naval_mem [IP requerido]
+├── u_cpu: cpu
+│   ├── dp: datapath
+│   │   ├── u_pc, u_pc4, u_pctarget, u_alumux, u_alu
+│   │   ├── u_regfile, u_extend, u_resultmux, u_pcmux
+│   │   └── u_imem y u_dmem [memorias locales no usadas en modo SoC]
+│   └── cu: control_unit
+│       ├── md: main_decoder
+│       └── ad: alu_decoder
+├── u_data_ram: soc_data_ram
+├── u_gpio: j1_input
+│   ├── sync_btns: sync
+│   └── debounce_btns: debouncer
+├── u_led: led_perifico
+│   └── u_status_led: status_led
+├── u_display: display_7seg
+│   └── u_seven_seg: seven_seg_mux
+├── u_buzzer: buzzer_perifico
+│   └── u_buzzer: buzzer_driver
+├── u_uart: uart_top
+│   ├── baud_gen: uart_generador_baudios
+│   ├── rx_inst: uart_rx
+│   └── tx_inst: uart_tx
+└── u_vga: vga_periph
+    ├── u_vram: tile_map_ram
+    ├── u_sync: vga_sync
+    └── u_renderer: tile_renderer
+```
+
+El decodificador de direcciones y el multiplexor combinacional de lectura están
+descritos dentro de `soc_top`; no hay un módulo independiente
+`bus_interconnect`. `uart_peripheral` también declara una implementación UART
+con instancias internas de RX/TX y generador de baudios, pero no se instancia
+en esta jerarquía: la instancia activa del SoC es `uart_top`. Puede conservarse
+como fuente para su testbench, sin seleccionarla como parte de la síntesis del
+SoC.
+
+`vga_top_dut_board` y `vga_top_dut` corresponden a una jerarquía independiente
+de demostración VGA, no a hijos de `soc_top`. Los módulos `ALUMux`,
+`MemoryMux`, `PCPlus4` y `SumPCTarget` tampoco se instancian en el datapath
+actual, que utiliza `mux21`, `mux41` y `adder`. Se pueden excluir del fileset
+de síntesis del SoC, pero deben seguir disponibles en los filesets de
+simulación que ejecutan sus testbenches.
+
+Esta jerarquía describe las instancias RTL, no acredita por sí sola que la
+síntesis y la implementación estén cerradas. `clk_wiz_0` y
+`batalla_naval_mem` requieren sus IP de Vivado; el repositorio no contiene un
+`.xpr` ni las configuraciones de esos IP. Véase la sección Configuración de
+Vivado para el estado de restricciones y los pendientes de reproducibilidad.
 
 
 ## Microprocesador RISC-V
@@ -345,14 +421,20 @@ entrada la señal `A`, proveniente directamente del contador de programa.
 
 | Parámetro | Valor actual | Descripción                                                |
 | --------- | -----------: | ---------------------------------------------------------- |
-| `DEPTH`   |          256 | Cantidad de palabras de 32 bits almacenadas en la memoria. |
+| `DEPTH`   |         2048 | Cantidad de palabras de 32 bits almacenadas en la memoria. |
+
+La imagen del programa se inicializa mediante `program.hex`, leído por
+`instr_mem` con `$readmemh`.
 
 ![Diagrama del ROM](./Imagenes/ROM.png)
 
 ### RAM
 
-El módulo `data_mem` implementa la memoria de datos del procesador mediante un
-arreglo de 256 palabras de 32 bits.
+`data_mem` implementa la memoria local de 256 palabras que permanece dentro de
+`datapath`. En la integración de `soc_top`, la memoria mapeada en el bus de
+datos es `soc_data_ram`, con 1024 palabras de 32 bits a partir de la dirección
+base `0x00002000`. Ambas memorias contemplan las operaciones de lectura y
+escritura de byte, media palabra y palabra descritas a continuación.
 
 | `funct3` | Operación | Resultado de lectura                                 |
 | -------- | --------- | ---------------------------------------------------- |
@@ -410,18 +492,28 @@ casilla se calculará mediante:
 
 ### Bus del sistema
 
-El bus de datos está formado por cuatro señales que el `riscv_core` gobierna en cada acceso a memoria de datos (`lw`/`sw`):
+El bus de datos se compone de señales que `cpu` intercambia con la lógica de
+interconexión implementada en `soc_top` durante los accesos a memoria (`lb`,
+`lh`, `lw`, `lbu`, `lhu`, `sb`, `sh` y `sw`):
 
-- **`DataAddress_o[31:0]`**: dirección generada por el procesador. La entrega simultáneamente al `bus_interconnect`, a la `ram` y a todos los periféricos; cada destino decodifica internamente si la dirección le corresponde.
-- **`DataOut_o[31:0]`**: dato que el procesador escribe durante una instrucción `sw`. Se distribuye por difusión (broadcast) a todos los destinos; solo el destino seleccionado por la decodificación de dirección lo captura.
-- **`DataIn_i[31:0]`**: dato que el procesador recibe durante una instrucción `lw`. El `bus_interconnect` multiplexa las señales `rdata_o` de la `ram` y de cada periférico, y entrega al núcleo únicamente la correspondiente a la dirección solicitada.
-- **`we_o`**: habilita la escritura (1 = escritura, 0 = lectura). Se replica junto con la dirección decodificada hacia el destino seleccionado; en el resto de destinos permanece inactiva, evitando escrituras no deseadas.
+- **`DataAddress_o[31:0]`**: dirección generada por el procesador y enviada a la lógica de selección y a los destinos.
+- **`DataOut_o[31:0]`**: dato de escritura distribuido a la RAM y los periféricos; cada bloque solo lo captura cuando su habilitación está activa.
+- **`DataIn_i[31:0]`**: dato seleccionado en `soc_top` desde la RAM o el periférico direccionado y devuelto al procesador.
+- **`DataFunct3_o[2:0]`**: identifica el tamaño y tipo de acceso a memoria utilizado por el CPU.
+- **`DataWriteEnable_o`**: indica una escritura; `soc_top` la combina con la selección de dirección para generar las habilitaciones locales.
 
 ### Decodificación de direcciones
 
-El `bus_interconnect` compara los bits altos de `DataAddress_o` contra rangos fijos para generar una señal de selección por destino (`ram_sel`, `uart_sel`, `gpio_sel`, `disp_sel`, `led_sel`, `buzzer_sel`, `vga_sel`). Cada `*_sel` se combina con `we_o` mediante una compuerta AND para producir el `write_enable_i` local de ese destino. La ROM queda fuera de este decodificador porque se accede por el bus dedicado (`ProgAddress_o`/`ProgIn_i`), no por el bus de datos.
+La lógica de `soc_top` compara `DataAddress_o` con rangos fijos y genera
+selecciones para la RAM y los periféricos (`ram_select`, `uart_select`,
+`gpio_select`, `display_select`, `led_select`, `buzzer_select` y `vga_select`).
+Cada selección se combina con `DataWriteEnable_o` para generar la habilitación
+de escritura local. La ROM queda fuera de esta decodificación y se accede por
+el bus dedicado de programa (`ProgAddress_o`/`ProgInstr_i`).
 
-Para la lectura, el mismo decodificador controla un multiplexor combinacional de 7 entradas (una por destino) que selecciona el `rdata_o` correspondiente y lo entrega como `DataIn_i` hacia el procesador. Al no coincidir la dirección con ningún rango válido, el multiplexor entrega `32'b0` por defecto.
+Para la lectura, un multiplexor combinacional en `soc_top` selecciona entre
+la RAM y los periféricos con registro de lectura y entrega el resultado como
+`DataIn_i`. Si no se selecciona un destino con lectura, entrega `32'b0`.
 
 ### Mapa de memoria
 
@@ -453,20 +545,30 @@ Diagrama segundo nivel sistema de periféricos
 
 a) Nombre del módulo: `j1_input` (instancia `sync` y `debouncer`)
 
-b) 
 
+Bus de programa (dedicado, de solo lectura). El módulo `cpu` entrega
+`ProgAddress_o` a `instr_mem` y recibe `ProgInstr_i`. Este bus transporta
+instrucciones, separado de los accesos a datos.
 <img width="360" height="502" alt="Captura de pantalla 2026-09-23 152707" src="https://github.com/user-attachments/assets/9596b072-c0ea-4a74-8913-11d606db6f9d" />
 
+Bus de datos (compartido y mapeado en memoria). El `cpu` entrega
+`DataAddress_o`, `DataOut_o`, `DataFunct3_o` y `DataWriteEnable_o` a la lógica
+de interconexión de `soc_top`. Allí se decodifican los rangos de RAM y
+periféricos, se habilita el destino de escritura y se selecciona el dato de
+lectura para `DataIn_i`.
 Diagrama tercer nivel
-
+El periférico VGA también recibe las señales de dirección y escritura. Su
+rango selecciona la memoria de tiles y el renderizador entrega la imagen a las
+salidas VGA; no es un registro de lectura dentro del multiplexor `data_read` de
+`soc_top`.
 c) Objetivo: entregar al CPU, en un único registro de 32 bits legible por `lw`, el estado ya sincronizado y filtrado de rebotes de los siete controles físicos del Jugador 1.
 
 d) 
-| entradas | descripcion |
-|-----|---------|
-| clk_i, rst_i| Reloj de sistema y reset |
-| btns_in[6:0] | Señales físicas crudas: arriba, abajo, izquierda, derecha, seleccionar, confirmar y reiniciar |
-| write_enable_i, addr_i[1:0], wdata_i[31:0] | 	Bus estándar (no se usan para escritura; periférico de solo lectura) |
+| Entradas | Descripción |
+|---|---|
+| `clk_i`, `rst_i` | Reloj de sistema y reset. |
+| `btns_in[6:0]` | Siete señales físicas sincronizadas y filtradas; el mapeo efectivo desde los puertos de `soc_top` se detalla abajo. |
+| `write_enable_i`, `addr_i[1:0]`, `wdata_i[31:0]` | Interfaz estándar; el periférico es de solo lectura. |
 
 e)  
 | salidas | descripcion |
@@ -479,9 +581,9 @@ f) Relación con otros módulos: es consumido exclusivamente por el programa en 
 
 g) El sincronizador de dos etapas resuelve la metaestabilidad de las 7 entradas asíncronas. El filtro antirrebote —replicado 7 veces mediante generate— solo actualiza btn_out[i] cuando la entrada se mantiene estable durante 2²⁰−1 ciclos consecutivos (~10.5 ms a 100 MHz), reiniciando el conteo cada vez que detecta un cambio. El resultado se expone de forma puramente combinacional en rdata_o.
 
-#### Registro de estado
+#### Registro de estado y asignación física
 
-Ecuación de metaestabilidad: `t_estable = (2^20 − 1) / CLK_FREQ_HZ ≈ 10.49 ms` (a 100 MHz)
+El contrato funcional del periférico define el siguiente orden de bits:
 
 | Bit | Entrada |
 |-----|---------|
@@ -493,18 +595,47 @@ Ecuación de metaestabilidad: `t_estable = (2^20 − 1) / CLK_FREQ_HZ ≈ 10.49 
 | 5 | BTN OK (confirmación) |
 | 6 | BTN RST |
 
+Sin embargo, la conexión actual en `soc_top` es
+`btns = {btnC, btnU, btnD, btnL, btnR, sw}`. Por tanto, el origen físico de
+cada bit que recibe `j1_input` es:
+
+| Bit de `btns_in` | Puerto físico actual |
+|---:|---|
+| 0 | `sw[0]` |
+| 1 | `sw[1]` |
+| 2 | `btnR` |
+| 3 | `btnL` |
+| 4 | `btnD` |
+| 5 | `btnU` |
+| 6 | `btnC` |
+
+Este cableado **no implementa el contrato funcional de la tabla anterior**
+para los bits 0–5: los switches ocupan las posiciones de arriba/abajo y los
+pulsadores de dirección/selección/confirmación quedan desplazados. Aunque se
+usan cinco pulsadores y dos switches para completar siete entradas, la
+correspondencia debe corregirse en RTL o acordarse explícitamente y verificarse
+antes de afirmar que navegación, selección y confirmación cumplen el enunciado.
+BTN RST queda en `btns_in[6]`, como espera la tabla.
+
+El filtro actual requiere `2^20 - 1` ciclos estables, equivalentes a
+`(2^20 - 1) / 100 MHz ≈ 10.49 ms` con el reloj de placa.
+
 ### UART
 
 **Objetivo:** reutilizar el periférico UART del Proyecto 2 como único canal de interacción del Jugador 2 con la partida, transmitiendo hacia la FPGA la colocación de barcos y los disparos, y notificando desde la FPGA cada evento relevante (aceptación o rechazo de colocación, cambio de turno, resultado de disparos y fin de partida).
 
-**Descripción:** el periférico opera a 115200 baudios, 8 bits de datos, sin paridad, 1 bit de parada. `baud_gen` divide `clk_100MHz` para generar el tick de muestreo. `uart_tx` es un registro de desplazamiento paralelo-serie que arma la trama cuando el CPU escribe en el registro de Datos TX y activa `tx_busy` mientras transmite. `uart_rx` es un registro de desplazamiento serie-paralelo que ensambla el byte recibido, lo deja disponible en el registro de Datos RX y activa `rx_valid`. El registro Control/Estado expone ambas banderas para que el programa en ensamblador las consulte por polling antes de escribir o leer. La interpretación del contenido de cada trama (protocolo de aplicación) reside completamente en el programa ensamblador; el hardware únicamente forma y decodifica bits.
+**Descripción:** `uart_top` opera con parámetros por defecto de 100 MHz,
+115200 baudios, 8 bits de datos y sobremuestreo de 16. Instancia
+`uart_generador_baudios`, `uart_rx` y `uart_tx`; además expone registros de
+control/estado, transmisión y recepción mediante su interfaz mapeada en
+memoria. `uart_top` se conecta a los pines seriales desde `soc_top`.
 
 #### Módulos internos
 
-- Baud generator (`baud_gen.sv`)
+- Generador de baudios (`uart_generador_baudios.sv`)
 - UART TX (`uart_tx.sv`)
 - UART RX (`uart_rx.sv`)
-- UART peripheral (`uart_periph.sv`)
+- Interfaz y registros del periférico (`uart_top.sv`)
 
 #### Registros
 
@@ -530,12 +661,16 @@ El siguiente periférico se encarga de mostrar en un monitor VGA un mapa de tile
 
 ###### tile_map_ram
 
-Se encarga de almacenar la información de los tiles; es modificada por el CPU conforme el juego avanza, y la VGA lee esta información por medio del módulo `tile_renderer`. Se implementa como una memoria síncrona de doble puerto, 512 palabras de 32 bits (300 en uso).
+Almacena 512 palabras de 32 bits; el CPU escribe las casillas y el
+`tile_renderer` obtiene los datos del puerto VGA. La lectura y la escritura
+son síncronas en sus respectivos relojes.
 
-- Entradas: `clk_i` (100 MHz, puerto A), `clk_pixel_i` (25 MHz, puerto B), `write_enable_i`, `addr_i[8:0]` (puerto A), `wdata_i[31:0]` (puerto A), `addr_pixel_i[8:0]` (puerto B, generado por `tile_renderer`).
-- Salidas: `rdata_o[31:0]` (puerto A, eco de lectura del CPU), `tile_data_o[31:0]` (puerto B, hacia `tile_renderer`).
+- Entradas: `clk_cpu_i`, `write_enable_i`, `addr_cpu_i[8:0]`, `wdata_i[31:0]`, `clk_vga_i` y `addr_vga_i[8:0]`.
+- Salida: `rdata_vga_o[31:0]` hacia `tile_renderer`.
 
-El puerto A opera en `clk_100MHz`, controlado por el `bus_interconnect`, y permite actualizar una casilla con una única instrucción `sw` sin bloquear la ejecución del programa. El puerto B opera en `clk_pixel_25MHz`, es de solo lectura, y no requiere arbitraje adicional al tratarse de dominios de reloj independientes.
+El puerto de escritura opera con el reloj del CPU y el puerto de lectura con el
+reloj VGA. `soc_top` decodifica el rango VGA y habilita las escrituras; la RAM
+no devuelve un dato de lectura al bus del CPU.
 
 ###### vga_sync
 
@@ -553,10 +688,13 @@ Identifica en qué tile se encuentra cada píxel y qué color representa, a part
 
 ###### vga_periph
 
-Integra al resto de los módulos, recibiendo la información que viene desde el procesador y el reloj con el que trabaja la VGA, y generando las salidas físicas hacia la FPGA.
+Integra la memoria de tiles, la sincronización y el renderizado, y genera las
+salidas físicas VGA.
 
-- Entradas: `clk_i` (100 MHz), `clk_pixel_i` (25 MHz), `rst_i`, `write_enable_i`, `addr_i[8:0]`, `wdata_i[31:0]` (desde `bus_interconnect`).
-- Salidas: `rdata_o[31:0]` (hacia `bus_interconnect`), `hsync_o`, `vsync_o`, `rgb_o[11:0]` (señales físicas hacia el conector VGA).
+- Entradas: `clk_cpu_i`, `rst_i`, `write_enable_i`, `addr_i[31:0]`,
+  `wdata_i[31:0]` y `clk_vga_i`.
+- Salidas: `hsync_o`, `vsync_o` y los canales físicos `vga_r_o`, `vga_g_o` y
+  `vga_b_o`.
 
 ### Generación de sincronismos
 
@@ -570,7 +708,11 @@ Ver diagrama de la cuadrícula en `docs/diseño/Imagenes` (pestaña "Periférico
 
 ### Memoria de video
 
-`tile_map_ram` se implementa como una memoria síncrona de doble puerto, 512 palabras de 32 bits (300 en uso). El puerto A opera en `clk_100MHz`, controlado por `write_enable_i`/`addr_i`/`wdata_i` desde el `bus_interconnect`, y permite actualizar una casilla con una única instrucción `sw` sin bloquear la ejecución del programa. El puerto B opera en `clk_pixel_25MHz`, es de solo lectura, y `tile_renderer` lo direcciona combinacionalmente calculando `fila_tile = vcount/32`, `col_tile = hcount/32` y `dirección = fila_tile*20 + col_tile`. Al tratarse de dominios de reloj independientes, cada puerto accede a la memoria sin arbitraje adicional, apoyándose en la estructura nativa de doble puerto/doble reloj de los bloques de memoria de la FPGA.
+`tile_map_ram` contiene 512 palabras de 32 bits (300 tiles visibles). El puerto
+de escritura recibe desde `vga_periph` la dirección derivada de `addr_i`; el
+puerto de lectura, sincronizado con `clk_vga_i`, es direccionado por
+`tile_renderer` a partir de la posición del píxel. La memoria admite accesos
+en ambos dominios de reloj mediante sus puertos independientes.
 
 ### Codificación de tiles
 
@@ -688,12 +830,16 @@ h) Diseño — tabla de códigos de evento
 
 Generación de 25 MHz mediante PLL.
 
-Esta es la configuracion requerida para el SoC final. La demo existente
-`vga_top_dut_board` deriva el reloj VGA con un divisor RTL y solo se usa para
-la etapa de visualizacion; debe sustituirse por un PLL de Vivado en la
-integracion final.
+La integración de `soc_top` genera el reloj VGA con el PLL instanciado en
+`vga_clock_gen`. La demo independiente `vga_top_dut_board` usa un divisor RTL
+para generar su reloj de píxel.
 
-El sistema opera con tres dominios de reloj derivados del único reloj de 100 MHz de la FPGA mediante un PLL: `clk_100MHz` (núcleo, RAM, bus, periféricos de registros y puerto de escritura de `tile_map_ram`), `clk_pixel_25MHz` (dominio de video: `vga_sync`, `tile_renderer` y puerto de lectura de `tile_map_ram`) y el tick de baudios que `baud_gen` deriva internamente de `clk_100MHz` mediante un contador de división (115200 baudios). El único cruce real de dominio de reloj ocurre en `tile_map_ram`, resuelto por su estructura de doble puerto/doble reloj; el resto de los periféricos opera íntegramente en `clk_100MHz`, y las entradas asíncronas de botones se resuelven con el sincronizador de dos etapas del `debouncer`.
+`soc_top` usa el reloj de placa de 100 MHz para el CPU, la RAM y los
+periféricos. El módulo `vga_clock_gen` instancia un PLL para generar el reloj
+de 25 MHz de VGA. El generador `uart_generador_baudios` deriva el tick de
+sobremuestreo desde el reloj de sistema. `tile_map_ram` conecta sus puertos de
+escritura y lectura a los dominios del CPU y VGA, respectivamente; las
+entradas de botones pasan por `sync` y `debouncer`.
 
 
 ## Programa en ensamblador
@@ -826,8 +972,14 @@ botones direccionales a navegacion y `sw[1:0]` a rotacion/confirmacion. La
 terminal UART es una aplicacion de PC; `uart_top` es un periferico, no un top
 fisico. El resumen de seleccion y el mapa de controles estan en
 `constraints/README.md`.
+## Configuración de Vivado
 
-### Estructura sugerida del medio informe
+Para la integración RTL en Basys 3, seleccione `soc_top` y
+`constraints/ConstraintsTop.xdc`. La demo VGA independiente usa
+`vga_top_dut_board` con `constraints/vga_top_dut_basys3.xdc`; son tops con
+puertos y propósitos distintos, por lo que no se deben combinar sus XDC.
+`uart_top` es un periférico instanciado por `soc_top`, no un top de placa;
+`uart_peripheral` tampoco forma parte de la jerarquía activa.
 
 1. **Alcance y estado:** requisitos del proyecto, bloques disponibles y
   pendientes; el CPU existente se conserva fuera de este reajuste.
@@ -843,25 +995,26 @@ fisico. El resumen de seleccion y el mapa de controles estan en
 6. **Riesgos y trabajo pendiente:** validar el flujo completo del juego,
    gestionar overrun UART, revisar inferencia de la memoria VGA y completar
    simulacion post-implementacion y pruebas en la tarjeta.
+`ConstraintsTop.xdc` asigna pines, pero aún requiere `create_clock` para
+declarar el reloj de 100 MHz al análisis temporal. Para elaborar/sintetizar el
+SoC también deben estar disponibles los IP `clk_wiz_0` y
+`batalla_naval_mem`. El repositorio no incluye un archivo `.xpr` ni las
+configuraciones de dichos IP, por lo que la jerarquía RTL no basta para
+reproducir una implementación Vivado desde cero.
 
 Ver diagrama de flujo de la aplicación en `docs/diseño/Imagenes` (pestaña "Flujo programa principal" del archivo `Proyecto3_BatallaNaval_Diagramas.drawio`, adaptable al flujo de `main.py`).
 
 
 ## Estrategia de implementación
+## Organización del RTL
 
-El desarrollo se organiza en el siguiente orden, de forma que cada bloque se valide de manera aislada antes de depender de él:
-
-**Core → Memorias → Bus → Periféricos de registro (GPIO, display, LED, buzzer) → UART → VGA → Integración → Ensamblador → Aplicación Python.**
-
-- **Core primero:** el resto del sistema depende de que el procesador ejecute instrucciones correctamente, y puede verificarse de forma aislada con un `program.mem` sintético cargado directamente en la ROM del testbench, sin necesidad de ningún periférico.
-- **Memorias antes que el bus:** una vez validado el core, se conecta a `rom.sv` y `ram.sv` sin decodificador, confirmando que ambos buses (programa y datos) funcionan de forma independiente.
-- **Bus de interconexión:** se agrega `bus_interconnect.sv` una vez existe más de un destino que direccionar, verificando que la decodificación no interfiera con los accesos a RAM ya validados.
-- **Periféricos de registro simples antes que VGA/UART:** `player1_input`, `display_7seg`, `led_estado` y `buzzer_pwm` exponen un único registro de 32 bits, por lo que su verificación es directa (una escritura, una lectura) y sirve para confirmar que el esquema de direccionamiento del bus funciona correctamente antes de abordar periféricos más complejos.
-- **UART:** se reutiliza del Proyecto 2, pero debe revalidarse contra el nuevo mapa de registros y contra el protocolo de aplicación definido en este documento.
-- **VGA al final del hardware:** es el periférico más complejo por el cruce de dominios de reloj (100 MHz / 25 MHz) y por depender de que el resto del sistema ya esté estable.
-- **Integración (`sistema_computo` + `basys3_top`):** una vez validado cada bloque por separado, se conectan todos y se ejecuta un fragmento representativo del programa completo en simulación post-implementación temporizada.
-- **Ensamblador:** el programa del juego se escribe y prueba subrutina por subrutina sobre el sistema ya integrado, comenzando por `sistema_ini` y `limpiar_tableros`.
-- **Aplicación Python:** el desarrollo del protocolo UART puede avanzar en paralelo con el hardware una vez que el formato de trama esté definido, pero la prueba de integración final con la FPGA solo puede realizarse cuando el UART y el core estén funcionales.
+El RTL se organiza en cuatro grupos: `cpu` contiene el procesador y sus
+memorias locales; `peripheral` reúne los bloques GPIO, display, LED, buzzer y
+VGA; `uart` contiene el periférico serial; y `top` contiene la RAM del SoC,
+el generador de reloj VGA y `soc_top`, que integra los bloques y realiza la
+decodificación del mapa de memoria. El programa de juego se almacena en
+`modulos/src/cpu/program.hex`; la aplicación de PC y el firmware ensamblador
+se mantienen fuera de `modulos/src`.
 
 
 ## Plan de validación
@@ -905,6 +1058,7 @@ La organización de la RAM se realizó de esa manera, ya que mantiene un orden l
 - **Manejo de botones:** se emplea un sincronizador de dos etapas seguido de un filtro antirrebote temporizado (en lugar de un flanco simple) porque los seis pulsadores de la Basys3 son entradas mecánicas asíncronas al reloj del sistema; sin este tratamiento, un solo evento de rebote podría interpretarse como múltiples pulsaciones y provocar colocaciones o disparos no intencionados.
 
 - **Organización modular:** cada periférico se implementa como un módulo independiente con la misma interfaz estándar de 32 bits (`clk_i`, `rst_i`, `write_enable_i`, `addr_i`, `wdata_i`, `rdata_o`), de forma que pueda verificarse de manera aislada mediante su propio testbench antes de integrarse al `bus_interconnect`; esto reduce el espacio de búsqueda de errores durante la integración, ya que un fallo detectado en `sistema_computo` puede descartar de inmediato los módulos ya validados individualmente.
+- **Organización modular:** CPU, memorias y periféricos se mantienen en módulos separados dentro de `modulos/src`. `soc_top` los conecta y contiene la decodificación del mapa de memoria; VGA conserva una interfaz distinta para los relojes de CPU y píxel.
 
 
 ## Referencias
