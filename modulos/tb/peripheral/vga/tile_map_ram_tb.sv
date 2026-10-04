@@ -7,6 +7,7 @@ module tile_map_ram_tb();
     logic        write_enable_i;
     logic [8:0]  addr_cpu_i;
     logic [31:0] wdata_i;
+    logic [31:0] rdata_cpu_o;
 
     // Señales Puerto B (VGA - 25 MHz)
     logic        clk_vga_i;
@@ -18,6 +19,7 @@ module tile_map_ram_tb();
         .write_enable_i (write_enable_i),
         .addr_cpu_i     (addr_cpu_i),
         .wdata_i        (wdata_i),
+        .rdata_cpu_o    (rdata_cpu_o),
         .clk_vga_i      (clk_vga_i),
         .addr_vga_i     (addr_vga_i),
         .rdata_vga_o    (rdata_vga_o)
@@ -39,25 +41,28 @@ module tile_map_ram_tb();
 
         #50;
 
-        // 1. Simular escritura de una casilla por parte del microprocesador
-        @(posedge clk_cpu_i);
+        // Conducir entradas en flanco opuesto evita carreras con el always_ff.
+        @(negedge clk_cpu_i);
         write_enable_i = 1;
         addr_cpu_i = 9'd45;         // Escribir en la celda 45
         wdata_i = 32'h00000002;     // Codificación para impacto (rojo)
         
-        @(posedge clk_cpu_i);
+        @(negedge clk_cpu_i);
         write_enable_i = 0;
+        if (rdata_cpu_o !== 32'h00000002)
+            $fatal(1, "CPU readback mismatch: %h", rdata_cpu_o);
 
-        // 2. Simular lectura asíncrona por parte del barrido de píxeles VGA
+        // El puerto VGA es síncrono: se fija la dirección antes del flanco activo.
         #100;
-        @(posedge clk_vga_i);
+        @(negedge clk_vga_i);
         addr_vga_i = 9'd45;
 
         @(posedge clk_vga_i);
-        if (rdata_vga_o == 32'h00000002) begin
+        #1;
+        if (rdata_vga_o === 32'h00000002) begin
             $display("PASSED: Lectura/Escritura en doble puerto exitosa.");
         end else begin
-            $error("FAILED: Se esperaba 0x00000002, se obtuvo %h", rdata_vga_o);
+            $fatal(1, "FAILED: Se esperaba 0x00000002, se obtuvo %h", rdata_vga_o);
         end
 
         $finish;

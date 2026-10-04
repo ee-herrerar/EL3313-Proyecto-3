@@ -28,10 +28,10 @@ module tb_data_mem;
         // ======================
         // LOAD TESTS
         // ======================
+        // Espera a que termine el bloque de inicialización del DUT.
+        #1;
         dut.mem[0] = 32'hAABBCCDD;
         A = 32'd0;
-
-        #1;
 
         funct3 = 3'b000; // lb
         #1;
@@ -68,11 +68,26 @@ module tb_data_mem;
             $fatal;
         end else $display("OK LHU");
 
+        // Los bits A[1:0] seleccionan byte y A[1] selecciona la mitad alta/baja.
+        A = 32'd2;
+        funct3 = 3'b000; // lb del byte 2: 0xBB
+        #1;
+        if (RD !== 32'hFFFFFFBB) $fatal(1, "LB offset 2 mismatch: %h", RD);
+        funct3 = 3'b100; // lbu del mismo byte
+        #1;
+        if (RD !== 32'h000000BB) $fatal(1, "LBU offset 2 mismatch: %h", RD);
+        funct3 = 3'b001; // lh de la mitad alta
+        #1;
+        if (RD !== 32'hFFFFAABB) $fatal(1, "LH offset 2 mismatch: %h", RD);
+        funct3 = 3'b101; // lhu de la mitad alta
+        #1;
+        if (RD !== 32'h0000AABB) $fatal(1, "LHU offset 2 mismatch: %h", RD);
+
         // ======================
         // STORE BYTE
         // ======================
         dut.mem[1] = 32'hAABBCCDD;
-        A = 32'd4;              // mem[1]
+        A = 32'd5;              // mem[1], byte lane 1
         WD = 32'h00000011;
         funct3 = 3'b000;        // sb
         WE = 1;
@@ -80,7 +95,7 @@ module tb_data_mem;
         #10;
         WE = 0;
 
-        if (dut.mem[1] !== 32'hAABBCC11) begin
+        if (dut.mem[1] !== 32'hAABB11DD) begin
             $display("ERROR SB: mem[1]=%h", dut.mem[1]);
             $fatal;
         end else $display("OK SB");
@@ -89,7 +104,7 @@ module tb_data_mem;
         // STORE HALF
         // ======================
         dut.mem[2] = 32'hAABBCCDD;
-        A = 32'd8;              // mem[2]
+        A = 32'd10;             // mem[2], mitad alta
         WD = 32'h00001122;
         funct3 = 3'b001;        // sh
         WE = 1;
@@ -97,7 +112,7 @@ module tb_data_mem;
         #10;
         WE = 0;
 
-        if (dut.mem[2] !== 32'hAABB1122) begin
+        if (dut.mem[2] !== 32'h1122CCDD) begin
             $display("ERROR SH: mem[2]=%h", dut.mem[2]);
             $fatal;
         end else $display("OK SH");

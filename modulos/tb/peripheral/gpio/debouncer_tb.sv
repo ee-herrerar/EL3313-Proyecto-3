@@ -8,11 +8,13 @@ module debouncer_tb;
 
     initial begin
         repeat (2) @(posedge clk);
+        @(negedge clk);
         reset = 0;
         btn_in = 1;
-        repeat (3) @(posedge clk);
+        repeat (4) @(posedge clk);
         #1; assert (btn_out == 0) else $fatal(1, "debouncer accepted too early");
         @(posedge clk); #1; assert (btn_out == 1) else $fatal(1, "debouncer did not accept stable input");
+        @(negedge clk);
         btn_in = 0;
         repeat (5) @(posedge clk);
         #1; assert (btn_out == 0) else $fatal(1, "debouncer did not release input");

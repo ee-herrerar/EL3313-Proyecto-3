@@ -22,7 +22,9 @@ Vivado deben verificarse por separado.
 - `modulos/src/uart/`: UART RX/TX, `uart_top` (instanciado por `soc_top`) y
   `uart_peripheral` (módulo alternativo, no instanciado por el SoC).
 - `modulos/src/top/`: top del SoC, RAM de datos y envoltura del reloj VGA.
-- `modulos/tb/`: bancos de prueba existentes.
+- `modulos/tb/`: bancos de prueba existentes; contiene modelos de simulación
+  para la BRAM de Vivado (`cpu/batalha_naval_mem_model.sv`) y el reloj VGA IP
+  (`top/clk_wiz_0_model.sv`).
 - `pc_app/vga_interactive.py`: consola de prueba del mapa de tiles VGA.
 - `pc_app/battleship_uart.py`: terminal serial del Jugador 2.
 - `pc_app/uart_protocol.py`: codec del protocolo de aplicación binario.

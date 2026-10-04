@@ -33,6 +33,7 @@ module tb_lb;
         // Inicializar memoria
         // ==========================
         // mem[0] = 0xAABBCCDD
+        #1;
         dut.mem[0] = 32'hAABBCCDD;
 
         #10;

@@ -18,6 +18,7 @@ module j1_input_tb;
     initial begin
         repeat (2) @(posedge clk);
         #1; assert (rdata_o == 0) else $fatal(1, "GPIO reset failed");
+        @(negedge clk);
         rst_i = 0;
         btns_in = 7'b0101010;
         repeat (4) @(posedge clk);

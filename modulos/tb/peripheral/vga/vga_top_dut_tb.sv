@@ -54,6 +54,7 @@ module vga_top_dut_tb;
 
     initial begin
         repeat (3) @(posedge clk_vga_i);
+        @(negedge clk_vga_i);
         rst_i = 1'b0;
 
         write_tile(0,   3'b000);
@@ -64,11 +65,11 @@ module vga_top_dut_tb;
 
         wait (dut.u_vga_periph.u_sync.h_count == 656);
         #1;
+        checks = checks + 1;
         if (hsync_o !== 1'b0 || vsync_o !== 1'b1) begin
             errors = errors + 1;
             $display("FAIL horizontal sync pulse: hsync=%b vsync=%b", hsync_o, vsync_o);
         end else begin
-            checks = checks + 1;
             $display("PASS horizontal sync pulse");
         end
 

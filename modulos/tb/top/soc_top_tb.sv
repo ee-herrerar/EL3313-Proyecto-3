@@ -16,6 +16,7 @@ module soc_top_tb;
 
     initial begin
         repeat (3) @(posedge clk100mhz);
+        @(negedge clk100mhz);
         btnC = 0;
         repeat (20) @(posedge clk100mhz);
         assert (!$isunknown(uart_tx)) else $fatal(1, "SoC UART TX unknown");

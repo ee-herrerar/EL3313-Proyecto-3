@@ -30,13 +30,29 @@ module vga_sync_tb();
         rst_i = 1;
 
         // Liberar reset
-        #100 rst_i = 0;
+        #100;
+        @(negedge clk_vga_i);
+        rst_i = 0;
 
-        // Esperar el equivalente a un par de líneas completas (800 píxeles por línea)
-        // 800 ciclos * 40 ns = 32000 ns
-        #64000;
+        #1;
+        assert (pixel_x_o == 0 && pixel_y_o == 0 && video_on_o)
+            else $fatal(1, "VGA counters did not restart at the visible origin");
 
-        // Terminar la simulación
+        wait (pixel_x_o == 10'd639);
+        #1;
+        assert (video_on_o) else $fatal(1, "last visible pixel was blanked");
+        wait (pixel_x_o == 10'd640);
+        #1;
+        assert (!video_on_o && hsync_o)
+            else $fatal(1, "horizontal blanking did not start at pixel 640");
+        wait (pixel_x_o == 10'd656);
+        #1;
+        assert (!hsync_o) else $fatal(1, "horizontal sync pulse did not assert low");
+        wait (pixel_x_o == 10'd752);
+        #1;
+        assert (hsync_o) else $fatal(1, "horizontal sync pulse did not deassert");
+
+        $display("vga_sync_tb: PASS");
         $finish;
     end
 

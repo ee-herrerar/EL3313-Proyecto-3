@@ -68,7 +68,7 @@ module ALUMux_tb;
         if (errors == 0)
             $display("TODOS LOS TESTS DEL MUX PASARON");
         else
-            $display("FALLARON %0d TESTS ", errors);
+            $fatal(1, "FALLARON %0d TESTS", errors);
 
         $finish;
     end

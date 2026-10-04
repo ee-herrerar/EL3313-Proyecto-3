@@ -55,7 +55,7 @@ module SumPCTarget_tb;
         if (errors == 0)
             $display("TODOS LOS TESTS DE SumPCTarget PASARON");
         else
-            $display("FALLARON %0d TESTS", errors);
+            $fatal(1, "FALLARON %0d TESTS", errors);
 
         $finish;
     end

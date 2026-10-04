@@ -44,11 +44,13 @@ module vga_periph_tb();
         addr_i = 0;
         wdata_i = 0;
 
-        #100 rst_i = 0;
+        #100;
+        @(negedge clk_vga_i);
+        rst_i = 0;
 
         // 1. CPU escribe un bloque de agua (0x000) en el inicio de la memoria de video
         // Según el mapa, la base es 0x00011000
-        @(posedge clk_cpu_i);
+        @(negedge clk_cpu_i);
         write_enable_i = 1;
         addr_i = 32'h00011000;
         wdata_i = 32'b000; // Agua
@@ -57,6 +59,7 @@ module vga_periph_tb();
         #1;
         if (rdata_cpu_o !== 32'b0)
             $fatal(1, "VGA CPU readback mismatch: %h", rdata_cpu_o);
+        @(negedge clk_cpu_i);
         write_enable_i = 0;
 
         @(negedge clk_cpu_i);
