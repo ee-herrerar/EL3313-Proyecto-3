@@ -71,8 +71,7 @@ _start:
 
     li      a0, 0
     jal     ra, led_write          # fase de colocacion
-    li      a0, 0
-    jal     ra, display_write
+    jal     ra, update_score_display
     jal     ra, render_boards
 
     li      a0, EVT_PLACE_START
@@ -106,19 +105,17 @@ battle_loop:
 # ---------------------------------------------------------------------------
 
 place_local_fleet:
-    addi    sp, sp, -20
-    sw      ra, 16(sp)
-    sw      s8, 12(sp)
-    sw      s9, 8(sp)
-    sw      s10, 4(sp)
-    sw      s11, 0(sp)
+    addi    sp, sp, -16
+    sw      ra, 12(sp)
+    sw      s8, 8(sp)
+    sw      s9, 4(sp)
+    sw      s10, 0(sp)
     li      s10, 0                 # barco actual: 0, 1, 2
 
 local_ship_loop:
     li      s8, 0                  # fila del cursor
     li      s9, 0                  # columna del cursor
     li      s11, 0                 # 0 horizontal, 1 vertical
-    jal     ra, render_local_cursor
 
 local_input_loop:
     jal     ra, read_buttons
@@ -127,7 +124,6 @@ local_input_loop:
     beq     t1, x0, check_down
     beq     s8, x0, local_input_loop
     addi    s8, s8, -1
-    jal     ra, render_local_cursor
     jal     x0, local_input_loop
 
 check_down:
@@ -136,7 +132,6 @@ check_down:
     li      t2, 7
     beq     s8, t2, local_input_loop
     addi    s8, s8, 1
-    jal     ra, render_local_cursor
     jal     x0, local_input_loop
 
 check_left:
@@ -144,7 +139,6 @@ check_left:
     beq     t1, x0, check_right
     beq     s9, x0, local_input_loop
     addi    s9, s9, -1
-    jal     ra, render_local_cursor
     jal     x0, local_input_loop
 
 check_right:
@@ -153,14 +147,12 @@ check_right:
     li      t2, 7
     beq     s9, t2, local_input_loop
     addi    s9, s9, 1
-    jal     ra, render_local_cursor
     jal     x0, local_input_loop
 
 check_select:
     andi    t1, t0, BTN_SELECT
     beq     t1, x0, check_ok
     xori    s11, s11, 1
-    jal     ra, render_local_cursor
     jal     x0, local_input_loop
 
 check_ok:
@@ -186,12 +178,11 @@ check_ok:
     li      t0, 3
     bne     s10, t0, local_ship_loop
 
-    lw      s11, 0(sp)
-    lw      s10, 4(sp)
-    lw      s9, 8(sp)
-    lw      s8, 12(sp)
-    lw      ra, 16(sp)
-    addi    sp, sp, 20
+    lw      s10, 0(sp)
+    lw      s9, 4(sp)
+    lw      s8, 8(sp)
+    lw      ra, 12(sp)
+    addi    sp, sp, 16
     jalr    x0, 0(ra)
 
 local_invalid:
@@ -200,12 +191,8 @@ local_invalid:
     jal     x0, local_input_loop
 
 receive_remote_fleet:
-    addi    sp, sp, -24
-    sw      ra, 20(sp)
-    sw      s8, 16(sp)
-    sw      s9, 12(sp)
-    sw      s10, 8(sp)
-    sw      s11, 4(sp)
+    addi    sp, sp, -4
+    sw      ra, 0(sp)
     li      s10, 0
 
 remote_ship_loop:
@@ -216,28 +203,34 @@ remote_ship_loop:
     bne     a1, t0, remote_ship_loop
 
     li      t5, FRAME_BUF
-    lbu     s8, 0(t5)               # identificador
-    lbu     s9, 1(t5)               # fila
-    lbu     s11, 2(t5)              # columna
+    lbu     t1, 0(t5)               # identificador
+    lbu     t2, 1(t5)               # fila
+    lbu     t3, 2(t5)               # columna
     lbu     t4, 3(t5)               # orientacion
-    sw      t4, 0(sp)
     mv      a0, s1
-    mv      a1, s9
-    mv      a2, s11
+    mv      a1, t2
+    mv      a2, t3
     mv      a3, t4
-    mv      a4, s8
+    mv      a4, t1
     jal     ra, validate_place
     bne     a0, x0, remote_invalid
 
+    # validate_place usa registros temporales t1-t5.
+    # Recuperar los datos originales antes de write_ship.
+    li      t5, FRAME_BUF
+    lbu     t1, 0(t5)               # identificador
+    lbu     t2, 1(t5)               # fila
+    lbu     t3, 2(t5)               # columna
+    lbu     t4, 3(t5)               # orientacion
+
     mv      a0, s1
-    mv      a1, s9
-    mv      a2, s11
-    lw      a3, 0(sp)
-    mv      a4, s8
+    mv      a1, t2
+    mv      a2, t3
+    mv      a3, t4
+    mv      a4, t1
     jal     ra, write_ship
 
-    li      t5, FRAME_BUF
-    sb      s8, 0(t5)
+    # FRAME_BUF[0] conserva el identificador original.
     li      a0, EVT_PLACE_OK
     li      a1, FRAME_BUF
     li      a2, 1
@@ -245,19 +238,15 @@ remote_ship_loop:
     addi    s10, s10, 1
     li      t0, 3
     bne     s10, t0, remote_ship_loop
-    lw      s11, 4(sp)
-    lw      s10, 8(sp)
-    lw      s9, 12(sp)
-    lw      s8, 16(sp)
-    lw      ra, 20(sp)
-    addi    sp, sp, 24
+    lw      ra, 0(sp)
+    addi    sp, sp, 4
     jalr    x0, 0(ra)
 
 remote_invalid:
     # validate_place retorna 1 por traslape y 2 por fuera del tablero.
-    li      t5, FRAME_BUF
-    sb      s8, 0(t5)
+    # FRAME_BUF[0] conserva el identificador original.
     addi    a0, a0, -1
+    li      t5, FRAME_BUF
     sb      a0, 1(t5)
     li      a0, EVT_PLACE_BAD
     li      a1, FRAME_BUF
@@ -274,7 +263,6 @@ local_turn:
     sw      ra, 4(sp)
     li      s8, 0
     li      s9, 0
-    jal     ra, render_target_cursor
 
 local_fire_input:
     jal     ra, read_buttons
@@ -283,7 +271,6 @@ local_fire_input:
     beq     t1, x0, lf_down
     beq     s8, x0, local_fire_input
     addi    s8, s8, -1
-    jal     ra, render_target_cursor
     jal     x0, local_fire_input
 lf_down:
     andi    t1, t0, BTN_DOWN
@@ -291,14 +278,12 @@ lf_down:
     li      t2, 7
     beq     s8, t2, local_fire_input
     addi    s8, s8, 1
-    jal     ra, render_target_cursor
     jal     x0, local_fire_input
 lf_left:
     andi    t1, t0, BTN_LEFT
     beq     t1, x0, lf_right
     beq     s9, x0, local_fire_input
     addi    s9, s9, -1
-    jal     ra, render_target_cursor
     jal     x0, local_fire_input
 lf_right:
     andi    t1, t0, BTN_RIGHT
@@ -306,7 +291,6 @@ lf_right:
     li      t2, 7
     beq     s9, t2, local_fire_input
     addi    s9, s9, 1
-    jal     ra, render_target_cursor
     jal     x0, local_fire_input
 lf_ok:
     andi    t1, t0, BTN_OK
@@ -327,6 +311,7 @@ local_fire_result:
     mv      a0, s8
     mv      a1, s9
     mv      a2, t6
+    # J1 dispara sobre J2: para la PC es un disparo recibido.
     jal     ra, send_incoming
     jal     ra, render_boards
     li      t0, 9
@@ -351,14 +336,14 @@ remote_turn:
     li      t0, 2
     bne     a1, t0, remote_turn
     li      t5, FRAME_BUF
-    lbu     s8, 0(t5)
-    lbu     s9, 1(t5)
+    lbu     t1, 0(t5)
+    lbu     t2, 1(t5)
     li      t0, 7
-    bgt     s8, t0, remote_turn
-    bgt     s9, t0, remote_turn
+    bgt     t1, t0, remote_turn
+    bgt     t2, t0, remote_turn
     mv      a0, s0
-    mv      a1, s8
-    mv      a2, s9
+    mv      a1, t1
+    mv      a2, t2
     jal     ra, resolve_shot
     li      t0, 3
     beq     a0, t0, remote_turn
@@ -368,9 +353,14 @@ remote_turn:
     bne     t6, t0, remote_result
     addi    s3, s3, 1
 remote_result:
-    mv      a0, s8
-    mv      a1, s9
+    # resolve_shot usa registros temporales. Recuperar coordenadas originales.
+    li      t5, FRAME_BUF
+    lbu     t1, 0(t5)
+    lbu     t2, 1(t5)
+    mv      a0, t1
+    mv      a1, t2
     mv      a2, t6
+    # J2 dispara sobre J1: para la PC es el resultado de su disparo propio.
     jal     ra, send_shot_result
     jal     ra, render_boards
     li      t0, 9
@@ -401,13 +391,6 @@ clear_board_done:
 
 # a0=tablero, a1=fila, a2=columna, a3=orientacion, a4=id
 validate_place:
-    li      t1, 7
-    bgt     a1, t1, place_out
-    bgt     a2, t1, place_out
-    li      t1, 1
-    bgt     a3, t1, place_out
-    li      t1, 2
-    bgt     a4, t1, place_out
     li      t0, 4
     beq     a4, x0, ship_length_done
     li      t0, 3
@@ -538,10 +521,6 @@ render_col:
     add     a0, a0, t0
     addi    a0, a0, 11
     add     a0, a0, s9
-    li      t0, 1
-    bne     t5, t0, remote_tile_ready
-    li      t5, 0
-remote_tile_ready:
     mv      a1, t5
     jal     ra, vga_write
     addi    s9, s9, 1
@@ -554,41 +533,6 @@ remote_tile_ready:
     lw      s8, 4(sp)
     lw      ra, 8(sp)
     addi    sp, sp, 12
-    jalr    x0, 0(ra)
-
-render_local_cursor:
-    addi    sp, sp, -4
-    sw      ra, 0(sp)
-    jal     ra, render_boards
-    addi    t0, s8, 2
-    slli    a0, t0, 4
-    slli    t1, t0, 2
-    add     a0, a0, t1
-    addi    t1, s9, 1
-    add     a0, a0, t1
-    li      a1, 5
-    beq     s11, x0, local_cursor_write
-    li      a1, 6
-local_cursor_write:
-    jal     ra, vga_write
-    lw      ra, 0(sp)
-    addi    sp, sp, 4
-    jalr    x0, 0(ra)
-
-render_target_cursor:
-    addi    sp, sp, -4
-    sw      ra, 0(sp)
-    jal     ra, render_boards
-    addi    t0, s8, 2
-    slli    a0, t0, 4
-    slli    t1, t0, 2
-    add     a0, a0, t1
-    addi    t1, s9, 11
-    add     a0, a0, t1
-    li      a1, 5
-    jal     ra, vga_write
-    lw      ra, 0(sp)
-    addi    sp, sp, 4
     jalr    x0, 0(ra)
 
 vga_write:
@@ -663,7 +607,8 @@ uart_rx_wait:
 
 # Recibe una trama valida; retorna a0=CMD, a1=LEN y guarda payload en FRAME_BUF.
 uart_recv_frame:
-    addi    sp, sp, -16
+    addi    sp, sp, -20
+    sw      ra, 16(sp)
     sw      s8, 12(sp)
     sw      s9, 8(sp)
     sw      s10, 4(sp)
@@ -701,7 +646,8 @@ recv_checksum:
     lw      s10, 4(sp)
     lw      s9, 8(sp)
     lw      s8, 12(sp)
-    addi    sp, sp, 16
+    lw      ra, 16(sp)
+    addi    sp, sp, 20
     jalr    x0, 0(ra)
 
 send_turn:
@@ -757,6 +703,41 @@ display_write:
     sw      a0, 0(t0)
     jalr    x0, 0(ra)
 
+# Actualiza los cuatro digitos del display con el marcador acumulado.
+# s6 = victorias J1 (0-99), s7 = victorias J2 (0-99).
+# Empaquetado fisico esperado: [J1 decenas][J1 unidades][J2 decenas][J2 unidades].
+update_score_display:
+    # J1: separar decenas y unidades sin usar DIV/REM (RV32I sin extension M).
+    mv      t0, s6
+    li      t1, 0
+score_j1_loop:
+    li      t2, 10
+    blt     t0, t2, score_j1_done
+    addi    t0, t0, -10
+    addi    t1, t1, 1
+    jal     x0, score_j1_loop
+score_j1_done:
+    slli    t3, t1, 12             # J1 decenas -> bits [15:12]
+    slli    t4, t0, 8              # J1 unidades -> bits [11:8]
+    or      t3, t3, t4
+
+    # J2: separar decenas y unidades.
+    mv      t0, s7
+    li      t1, 0
+score_j2_loop:
+    li      t2, 10
+    blt     t0, t2, score_j2_done
+    addi    t0, t0, -10
+    addi    t1, t1, 1
+    jal     x0, score_j2_loop
+score_j2_done:
+    slli    t4, t1, 4              # J2 decenas -> bits [7:4]
+    or      t3, t3, t4
+    or      t3, t3, t0             # J2 unidades -> bits [3:0]
+
+    mv      a0, t3
+    jal     x0, display_write       # tail-call: retorna al llamador original
+
 buzzer_write:
     li      t0, BUZZER_BASE
     sw      a0, 0(t0)
@@ -764,43 +745,55 @@ buzzer_write:
 
 # a0 ganador: 0 local, 1 remoto.
 finish_game:
+    # Guardar ganador en el payload antes de reutilizar a0.
     li      t0, FRAME_BUF
     sb      a0, 0(t0)
+
+    # Incrementar el marcador del ganador con saturacion en 99.
     beq     a0, x0, winner_local
+
+    li      t3, 99
+    bge     s7, t3, winner_remote_max
     addi    s7, s7, 1
-    li      s11, 1                  # protocolo: 1 = Jugador 2
+winner_remote_max:
     jal     x0, winner_common
+
 winner_local:
+    li      t3, 99
+    bge     s6, t3, winner_local_max
     addi    s6, s6, 1
-    li      s11, 0                  # protocolo: 0 = Jugador 1
+winner_local_max:
+
 winner_common:
+    # Persistir victorias en RAM. Esta RAM no se borra con BTN_RST.
     li      t0, P1_WINS
     sw      s6, 0(t0)
     li      t0, P2_WINS
     sw      s7, 0(t0)
+
+    # Estado visual/sonoro de fin de partida.
     li      a0, 2                   # LED: resultado de partida
     jal     ra, led_write
-    li      a0, 5
+    li      a0, 5                   # sonido de victoria
     jal     ra, buzzer_write
-    slli    t1, s6, 4
-    or      t1, t1, s7
-    mv      a0, t1
-    jal     ra, display_write
-    li      t0, FRAME_BUF
-    lbu     t0, 0(t0)
+    jal     ra, update_score_display
+
+    # Payload GAME_OVER:
+    # [0] ganador, [1:2] disparos totales (MSB primero),
+    # [3] barcos hundidos J1, [4] barcos hundidos J2.
     srli    t1, s5, 8
     li      t2, FRAME_BUF
     sb      t1, 1(t2)
     andi    t1, s5, 0xff
     sb      t1, 2(t2)
-    sb      x0, 3(t2)              # barcos hundidos: contador opcional
+    sb      x0, 3(t2)              # pendiente del bloque de hundimientos
     sb      x0, 4(t2)
     li      a0, EVT_GAME_OVER
     li      a1, FRAME_BUF
     li      a2, 5
     jal     ra, uart_send_frame
+
+# BTN_RST esta conectado al reset de hardware del CPU en soc_top.
+# Por eso el firmware solo permanece aqui hasta que el boton fuerce PC=0.
 finish_wait_reset:
-    jal     ra, read_buttons
-    andi    t1, a0, 0x40         # BTN_RST reinicia conservando victorias
-    beq     t1, x0, finish_wait_reset
-    jalr    x0, 0(ra)
+    jal     x0, finish_wait_reset
