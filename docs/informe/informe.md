@@ -18,6 +18,9 @@ Para este proyecto la lógica del juego reside únicamente en el programa escrit
 
 #### Juego en ensamblador 
 #### Microprocesador 
+##### Contador de programa
+Este modulo recibe la dirección de la instrucción y la mantiene durante el periodo. El modulo recibe la dirección de 32 bits llamada `PC` en el código, 
+
 #### Periférico: VGA
 VGA (Video Graphics Array) es un estándar de visualización en monitores analógicos con una resolución de 640x480@60Hz (resolución que se usara en este caso), que indica 640 pixeles de ancho y 480 pixeles de alto con una frecuencia de actualización de pantalla de 60Hz. La FPGA basys 3 sintetiza el controlador de la VGA, este se encarga de generar pulsos de sincronización verticales y horizontales que coordinen la presentación de video en la pantalla (sincronismos), también se encarga de acceder a la memoria de video y aplicar los datos conforme se va recorriendo cada pixel, actualizando la información de cada uno []. El controlador realiza la coordinación según el reloj la VGA de 25MHz, el cual también es generado por la FPGA.    
 
