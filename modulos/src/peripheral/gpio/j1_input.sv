@@ -16,7 +16,7 @@ module j1_input (
     // 1. Sincronización de entradas asíncronas
     logic [6:0] btns_sync;
     
-    sync #(
+    synchronizer #(
         .N(7)
     ) sync_btns (
         .clk          (clk_i),

@@ -102,7 +102,7 @@ modulos/src/
 ├── peripheral/
 │   ├── buzzer/   buzzer_driver.sv, buzzer_perifico.sv
 │   ├── display/  display_7seg.sv, led.sv, seven_seg_mux.sv, status_led.sv
-│   ├── gpio/     debouncer.sv, j1_input.sv, sync.sv
+│   ├── gpio/     debouncer.sv, j1_input.sv, synchronizer.sv
 │   └── vga/      tile_map_ram.sv, tile_renderer.sv, vga_periph.sv,
 │                vga_sync.sv, vga_top_dut.sv, vga_top_dut_board.sv
 ├── top/
