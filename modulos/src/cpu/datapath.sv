@@ -72,10 +72,9 @@ module datapath #(
     // ======================
     // Instruction Memory
     // ======================
-    instr_mem u_imem(
-        .clk(clk),
-        .A(PC),
-        .RD(InternalInstr)
+    instr_mem u_imem (
+        .A  (PC),
+        .RD (InternalInstr)
     );
 
     // ======================

@@ -1,17 +1,20 @@
 module instr_mem #(
     parameter DEPTH = 1024
 )(
-    input  logic        clk,    // Reloj del sistema/procesador
-    input  logic [31:0] A,      // Dirección (PC)
-    output logic [31:0] RD      // Instrucción leída de 32 bits
+    input  logic [31:0] A,
+    output logic [31:0] RD
 );
 
-    // Block Memory Generator configurado como ROM síncrona de un puerto (1024 x 32).
-    batalla_naval_mem u_bram_inst (
-        .clka  (clk),
-        .ena   (1'b1),
-        .addra (A[$clog2(DEPTH)+1:2]),
-        .douta (RD)
-    );
+    logic [31:0] mem [0:DEPTH-1];
+
+    assign RD = mem[A[12:2]];
+
+    initial begin
+        for (int i = 0; i < DEPTH; i = i + 1)
+            mem[i] = 32'h00000013; // nop
+
+        $readmemh("C:/Repositorios Github/EL3313-Proyecto-3/modulos/ensamblador/batalla_naval.hex",
+            mem);
+    end
 
 endmodule
