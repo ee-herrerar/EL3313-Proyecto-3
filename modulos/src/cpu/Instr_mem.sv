@@ -1,5 +1,5 @@
 module instr_mem #(
-    parameter DEPTH = 2048
+    parameter DEPTH = 1024
 )(
     input  logic [31:0] A,
     output logic [31:0] RD
