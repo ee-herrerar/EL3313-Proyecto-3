@@ -1,13 +1,16 @@
-// Modelo de simulación del reloj IP; divide 100 MHz entre cuatro y marca lock.
+// Modelo de simulación del reloj IP; pasa clk_fpga y divide para clk_vga.
 module clk_wiz_0 (
-    input  logic clk100mhz,
+    input  logic clk_in1,
     input  logic reset,
+    output logic clk_fpga,
     output logic clk_vga,
     output logic locked
 );
     logic [1:0] divider;
 
-    always_ff @(posedge clk100mhz or posedge reset) begin
+    assign clk_fpga = clk_in1;
+
+    always_ff @(posedge clk_in1 or posedge reset) begin
         if (reset) begin
             divider <= 2'b00;
             clk_vga <= 1'b0;
