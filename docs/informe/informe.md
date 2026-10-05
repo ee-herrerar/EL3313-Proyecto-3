@@ -18,6 +18,7 @@ Para este proyecto la lógica del juego reside únicamente en el programa escrit
 
 #### Juego en ensamblador 
 #### Microprocesador 
+En este proyecto se hará uso de un microprocesador basado en las instrucciones rv32i de RISC-V uniciclo, lo que significa que se ejecutara una sola instrucción por ciclo. Este elemento permite realizar las operaciones requeridas por la lógica del juego, como la suma o lectura de registros.
 #### ALU
 La unidad aritmética lógica en un procesador es la encargada de realizar operaciones aritméticas, lógicas o desplazamientos, esta tiene 3 entradas, 2 para cada operando de 32 bits (`SrcA` y `SrcB`) y una señal de control de 4 bits para indicar la operación (`ALUControl`), a partir de estas genera una señal de salida de 32 bits (`ALUResult`). Para evaluar condiciones de salto la ALU también genera las señales `less` y `zero`, estas son evaluados en la unidad de control. 
 
@@ -40,9 +41,19 @@ La estructura se realiza por medio de las señales `RegWrite` (de la unidad de c
 </p>
 
 ##### Generador de inmediatos
+El generador de inmediatos es el modulo que se encarga de generar un valor inmediato de 32 bits. En este caso el modulo se llama `Extend`, este recibe el instrucción de la que se saca el inmediato `Instr` y la señal `ImmSrc` que le dice al modulo como debe modificar y extender el inmediato, el resultado de la extensión se encuentra en su salida `ImmExt`. La figura # muestra la relación entre entradas y salidas en un diagrama simplificado:   
 
+<p align="center">
+  <b>Figura 2. Diagrama de generador de inmediatos </b> 
+</p>
+<p align="center">
+  <img src="../diseño/Imagenes/Extend.png" width="300">
+</p>
 
 ##### Comparador de branch
+Este modulo se encarga de comparar dos registros y determinar si se debe realizar un salto o no, si se determina que debe realizarse un salto, se carga la nueva dirección de salto en el contador de programa `PCTarget`, de lo contrario este continua aumentando la cuenta secuencialmente. En este microprocesador, las funciones de comprador de branch se reparten entre los módulos de ALU y la unidad de control, en lugar de un modulo propio. 
+ALU genera las señales `less` y `zero` a partir de sus entradas, `zero` en caso de que la operación de ALU tuviese resultado 0 y `less` si `SrcA < SrcB` realizando una comparación con signo, estas señales se envían a `control_unit` donde se determina el tipo de branch, de esta forma obteniendo el valor que determinara el siguiente valor del PC `PCSrc`.
+
 
 ##### Contador de programa
 Este modulo recibe la dirección de la instrucción y la mantiene durante el periodo, una vez se completa la instrucción el contador aumenta cuatro. El modulo mantiene la dirección de 32 bits llamada `PC` en el código y la actualiza en cada flanco de reloj `clk`, el valor nuevo que se almacenara tiene por nombre `PCnext` y es generado por el mux del datapath `u_pcmux`. En la siguiente figura se presenta la relación de estas señales con el contador:
@@ -56,15 +67,19 @@ Este modulo recibe la dirección de la instrucción y la mantiene durante el per
 
 
 ##### Unidad de control
-Esta unidad se encarga de controlar el resto de módulos por medio de señales de control basadas en la instrucción actual recibida del datapath, a partir de esto guía el comportamiento del mismo. 
+Esta unidad se encarga de controlar el resto de módulos por medio de señales de control basadas en una instrucción que recibe del datapath y luego usa para determinar su como debe implementarse la misma. En este microprocesador, la unidad de control recibe el código de operación de la instrucción, los campos adicionales que diferencian ciertas operaciones e instrucciones y los valores de `less` y `zero` descritos en la sección de "comparador de branch". 
 
 
 #### Periférico: VGA
 VGA (Video Graphics Array) es un estándar de visualización en monitores analógicos con una resolución de 640x480@60Hz (resolución que se usara en este caso), que indica 640 pixeles de ancho y 480 pixeles de alto con una frecuencia de actualización de pantalla de 60Hz. La FPGA basys 3 sintetiza el controlador de la VGA, este se encarga de generar pulsos de sincronización verticales y horizontales que coordinen la presentación de video en la pantalla (sincronismos), también se encarga de acceder a la memoria de video y aplicar los datos conforme se va recorriendo cada pixel, actualizando la información de cada uno []. El controlador realiza la coordinación según el reloj la VGA de 25MHz, el cual también es generado por la FPGA.    
 
-Para la aplicación de este periférico se genero un modulo de sincronismos `vga_sync`, este en encarga de recorrer las direcciones de cada pixel, para la actualización en la pantalla los cambios que realice el CPU en la memoria de video, también es el modulo que genera las señales de sincronización horizontal y vertical `vsync` y `hsync`. Para la memoria de video se genero el modulo `tile_map_ram`, la cual es una memoria de doble puerto que recibe los datos del CPU desde el modulo `vga_periph` como escritura y para luego ser leídos por el modulo que renderiza los tiles `tile_renderer`. `tile_renderer` se encarga de generar las señales RGB a partir del la información de la memoria de video y de del pixel que se este recorriendo en un momento especifico. `vga_periph` funciona como una interfaz que recibe la información del CPU y envía la información de RGB, `hsync` y `vsync` a los pines del conector VGA. En la tabla 1 se muestra la información utilizada para la coordinación del video en `vga_sync`:
+Para la aplicación de este periférico se genero un modulo de sincronismos `vga_sync`, este en encarga de recorrer las direcciones de cada pixel, para la actualización en la pantalla los cambios que realice el CPU en la memoria de video, también es el modulo que genera las señales de sincronización horizontal y vertical `vsync` y `hsync`. Para la memoria de video se genero el modulo `tile_map_ram`, la cual es una memoria de doble puerto que recibe los datos del CPU desde el modulo `vga_periph` como escritura y para luego ser leídos por el modulo que renderiza los tiles `tile_renderer`. `tile_renderer` se encarga de generar las señales RGB a partir del la información de la memoria de video y de del pixel que se este recorriendo en un momento especifico. `vga_periph` funciona como una interfaz que recibe la información del CPU y envía la información de RGB, `hsync` y `vsync` a los pines del conector VGA. En la tabla 1 se muestra la información utilizada para la coordinación del video en `vga_sync` y en la figura # se muestra un diagrama que relaciona los modulos con sus entradas y salidas:
 
-Tabla 1. Tiempos y pixeles de VGA.
+<p align="center">
+  <b>Tabla 1. Tiempos y pixeles de VGA. </b> 
+</p>
+<div align="center">
+  
 | Description | Time | Pixels |
 | :--- | :--- | :--- |
 | Visible area (Horizontal) | 25.422 μs | 640 |
@@ -77,6 +92,8 @@ Tabla 1. Tiempos y pixeles de VGA.
 | Vertical Back Porch | 1.048 ms | 33 Lines |
 | Vertical Front Porch | 0.318 ms | 10 Lines |
 | Whole Vertical Line | 16.683 μs | 525 | 
+  
+</div>
 
 #### Protocolo UART y aplicación PC
 #### Periféricos
