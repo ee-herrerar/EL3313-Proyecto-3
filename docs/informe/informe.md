@@ -23,7 +23,18 @@ VGA (Video Graphics Array) es un estándar de visualización en monitores analó
 
 Para la aplicación de este periférico se genero un modulo de sincronismos `vga_sync`, este en encarga de recorrer las direcciones de cada pixel, para la actualización en la pantalla los cambios que realice el CPU en la memoria de video, también es el modulo que genera las señales de sincronización horizontal y vertical `vsync` y `hsync`. Para la memoria de video se genero el modulo `tile_map_ram`, la cual es una memoria de doble puerto que recibe los datos del CPU desde el modulo `vga_periph` como escritura y para luego ser leídos por el modulo que renderiza los tiles `tile_renderer`. `tile_renderer` se encarga de generar las señales RGB a partir del la información de la memoria de video y de del pixel que se este recorriendo en un momento especifico. `vga_periph` funciona como una interfaz que recibe la información del CPU y envía la información de RGB, `hsync` y `vsync` a los pines del conector VGA. En la tabla 1 se muestra la información utilizada para la coordinación del video en `vga_sync`:
 
-
+| Description | Time | Pixels |
+| :--- | :--- | :--- |
+| Hor Sync Time | 3.813 μs | 96 Pixels |
+| Hor Back Porch | 1.907 μs | 48 Pixels |
+| Hor Front Porch | 0.636 μs | 16 Pixels |
+| Hor Addr Video Time | 25.422 μs | 640 Pixels |
+| Hor L/R Border | 0 μs | 0 Pixels |
+| V Sync Time | 0.064 ms | 2 Lines |
+| V Back Porch | 1.048 ms | 33 Lines |
+| V Front Porch | 0.318 ms | 10 Lines |
+| V Addr Video Time | 15.253 ms | 480 Lines |
+| V T/B Border | 0 ms | 0 Lines |
 
 #### Protocolo UART y aplicación PC
 #### Periféricos
