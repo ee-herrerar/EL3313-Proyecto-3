@@ -18,6 +18,47 @@ Para este proyecto la lógica del juego reside únicamente en el programa escrit
 
 #### Juego en ensamblador 
 #### Microprocesador 
+#### ALU
+La unidad aritmética lógica en un procesador es la encargada de realizar operaciones aritméticas, lógicas o desplazamientos, esta tiene 3 entradas, 2 para cada operando de 32 bits (`SrcA` y `SrcB`) y una señal de control de 4 bits para indicar la operación (`ALUControl`), a partir de estas genera una señal de salida de 32 bits (`ALUResult`). Para evaluar condiciones de salto la ALU también genera las señales `less` y `zero`, estas son evaluados en la unidad de control. 
+
+<p align="center">
+  <b>Figura 1. Diagrama de unidad aritmética lógica  </b> 
+</p>
+<p align="center">
+  <img src="../diseño/Imagenes/ALU.png" width="200">
+</p>
+
+#### Banco de registros   
+La unidad de registros esta compuesta por 32 registros cada uno de 32 bits y funciona para escritura y lectura. Existen varios tipos de registro: registros temporales, registros de guardado, punteros, cero, etc. En modo lectura con la instrucción `lw` se pueden recuperar elementos almacenados en el registro utilizando su dirección, en el modo de escritura por otro lado, se pueden escribir los datos usando `sw`. En este proyecto el nombre del modulo es `reg_file`, este permite dos lecturas simultáneas mediante las salidas `RD1` y `RD2`, y una escritura mediante la entrada `WD3`, las direcciones de registro se indican con las señales `A1`, `A2` y `A3`.  
+La estructura se realiza por medio de las señales `RegWrite` (de la unidad de control) y `WD3` las cuales determinan si se debe realizar una escritura, al realizarse, se escribe el valor de la señal `Result` en el registro designado. Las salidas `RD1` y `RD2` corresponden al contenido de los registros seleccionados por `A1` y `A2`, `RD1` es el primer operando del ALU y `RD2` puede usarse como segundo operando o para escritura en memoria. Cuándo `A1` o `A2` seleccionan al registro `x0` la salida respectiva es 0, aunque las operaciones de escritura sobre 0 son ignoradas. 
+
+<p align="center">
+  <b>Figura 2. Diagrama de banco de registros </b> 
+</p>
+<p align="center">
+  <img src="../diseño/Imagenes/BancoReg.png" width="300">
+</p>
+
+##### Generador de inmediatos
+
+
+##### Comparador de branch
+
+##### Contador de programa
+Este modulo recibe la dirección de la instrucción y la mantiene durante el periodo, una vez se completa la instrucción el contador aumenta cuatro. El modulo mantiene la dirección de 32 bits llamada `PC` en el código y la actualiza en cada flanco de reloj `clk`, el valor nuevo que se almacenara tiene por nombre `PCnext` y es generado por el mux del datapath `u_pcmux`. En la siguiente figura se presenta la relación de estas señales con el contador:
+
+<p align="center">
+  <b>Figura 3. Diagrama del contador del programa </b> 
+</p>
+<p align="center">
+  <img src="../diseño/Imagenes/PC.png" width="300">
+</p>
+
+
+##### Unidad de control
+Esta unidad se encarga de controlar el resto de módulos por medio de señales de control basadas en la instrucción actual recibida del datapath, a partir de esto guía el comportamiento del mismo. 
+
+
 #### Periférico: VGA
 VGA (Video Graphics Array) es un estándar de visualización en monitores analógicos con una resolución de 640x480@60Hz (resolución que se usara en este caso), que indica 640 pixeles de ancho y 480 pixeles de alto con una frecuencia de actualización de pantalla de 60Hz. La FPGA basys 3 sintetiza el controlador de la VGA, este se encarga de generar pulsos de sincronización verticales y horizontales que coordinen la presentación de video en la pantalla (sincronismos), también se encarga de acceder a la memoria de video y aplicar los datos conforme se va recorriendo cada pixel, actualizando la información de cada uno []. El controlador realiza la coordinación según el reloj la VGA de 25MHz, el cual también es generado por la FPGA.    
 
