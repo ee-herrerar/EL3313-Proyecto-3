@@ -21,7 +21,7 @@ module soc_top_tb;
     //
     // Por eso esta prueba se deja preparada pero desactivada.
     // Cuando implementemos colocacion concurrente, cambiar a 1.
-    localparam bit REQUIRE_CONCURRENT_PLACEMENT = 1'b0;
+    localparam bit REQUIRE_CONCURRENT_PLACEMENT = 1'b1;
 
 
     // ============================================================
