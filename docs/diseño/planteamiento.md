@@ -119,7 +119,7 @@ modulos/src/
 
 ```text
 soc_top
-├── u_vga_clock: vga_clock_gen
+├── u_clock_gen: vga_clock_gen
 │   └── u_clk_wiz_0: clk_wiz_0 [IP requerido]
 ├── u_program_rom: instr_mem
 │   └── u_bram_inst: batalla_naval_mem [IP requerido]
@@ -421,10 +421,15 @@ entrada la señal `A`, proveniente directamente del contador de programa.
 
 | Parámetro | Valor actual | Descripción                                                |
 | --------- | -----------: | ---------------------------------------------------------- |
-| `DEPTH`   |         2048 | Cantidad de palabras de 32 bits almacenadas en la memoria. |
+| `DEPTH`   |         1024 | Cantidad de palabras de 32 bits almacenadas en la ROM del SoC. |
 
-La imagen del programa se inicializa mediante `program.hex`, leído por
-`instr_mem` con `$readmemh`.
+En el SoC, `instr_mem` instancia el IP `batalla_naval_mem`, que se configura
+como ROM síncrona de un puerto, 32 bits de ancho y 1024 palabras de profundidad.
+La imagen del firmware se carga en el IP desde
+`modulos/ensamblador/batalla_naval.coe`; ese vector contiene las mismas 571
+instrucciones que `batalla_naval.hex`. La dirección del PC es de byte y se
+convierte a índice de palabra (`A[11:2]`). La lectura debe conservar una
+latencia síncrona de un ciclo.
 
 ![Diagrama del ROM](./Imagenes/ROM.png)
 
@@ -587,35 +592,30 @@ El contrato funcional del periférico define el siguiente orden de bits:
 
 | Bit | Entrada |
 |-----|---------|
-| 0 | Arriba |
-| 1 | Abajo |
-| 2 | Izquierda |
-| 3 | Derecha |
-| 4 | BTN SEL (rotación) |
-| 5 | BTN OK (confirmación) |
+| 0 | BTN OK (confirmación) |
+| 1 | BTN SEL (rotación) |
+| 2 | Derecha |
+| 3 | Izquierda |
+| 4 | Abajo |
+| 5 | Arriba |
 | 6 | BTN RST |
 
-Sin embargo, la conexión actual en `soc_top` es
-`btns = {btnC, btnU, btnD, btnL, btnR, sw}`. Por tanto, el origen físico de
-cada bit que recibe `j1_input` es:
+El firmware ensamblador usa las mismas máscaras de entrada. La conexión en
+`soc_top` implementa ese orden de bits con este mapeo:
 
 | Bit de `btns_in` | Puerto físico actual |
 |---:|---|
-| 0 | `sw[0]` |
-| 1 | `sw[1]` |
+| 0 | `sw[0]` (OK/confirmación) |
+| 1 | `sw[1]` (SEL/rotación) |
 | 2 | `btnR` |
 | 3 | `btnL` |
 | 4 | `btnD` |
 | 5 | `btnU` |
 | 6 | `btnC` |
 
-Este cableado **no implementa el contrato funcional de la tabla anterior**
-para los bits 0–5: los switches ocupan las posiciones de arriba/abajo y los
-pulsadores de dirección/selección/confirmación quedan desplazados. Aunque se
-usan cinco pulsadores y dos switches para completar siete entradas, la
-correspondencia debe corregirse en RTL o acordarse explícitamente y verificarse
-antes de afirmar que navegación, selección y confirmación cumplen el enunciado.
-BTN RST queda en `btns_in[6]`, como espera la tabla.
+`btnC` también actúa como reset general del SoC. Los switches son entradas
+mantenidas; deben volver a cero para generar una nueva transición en la
+aplicación. El debounce/sincronización de las entradas corre a `clk_fpga`.
 
 El filtro actual requiere `2^20 - 1` ciclos estables, equivalentes a
 `(2^20 - 1) / 100 MHz ≈ 10.49 ms` con el reloj de placa.
@@ -830,16 +830,16 @@ h) Diseño — tabla de códigos de evento
 
 Generación de 25 MHz mediante PLL.
 
-La integración de `soc_top` genera el reloj VGA con el PLL instanciado en
-`vga_clock_gen`. La demo independiente `vga_top_dut_board` usa un divisor RTL
-para generar su reloj de píxel.
+La integración de `soc_top` usa el Clocking Wizard `clk_wiz_0`: recibe
+`clk_in1` de 100 MHz, entrega `clk_fpga` a 100 MHz para el sistema y `clk_vga`
+a 25 MHz para VGA. La demo independiente `vga_top_dut_board` usa un divisor
+RTL para generar su reloj de píxel.
 
-`soc_top` usa el reloj de placa de 100 MHz para el CPU, la RAM y los
-periféricos. El módulo `vga_clock_gen` instancia un PLL para generar el reloj
-de 25 MHz de VGA. El generador `uart_generador_baudios` deriva el tick de
-sobremuestreo desde el reloj de sistema. `tile_map_ram` conecta sus puertos de
-escritura y lectura a los dominios del CPU y VGA, respectivamente; las
-entradas de botones pasan por `sync` y `debouncer`.
+`soc_top` usa `clk_fpga` para el CPU, la RAM y los periféricos. El generador
+`uart_generador_baudios` deriva el tick de sobremuestreo desde ese reloj de
+sistema. `tile_map_ram` conecta sus puertos de escritura y lectura a los
+dominios del CPU y VGA, respectivamente; las entradas de botones pasan por
+`sync` y `debouncer`.
 
 
 ## Programa en ensamblador
@@ -995,12 +995,12 @@ puertos y propósitos distintos, por lo que no se deben combinar sus XDC.
 6. **Riesgos y trabajo pendiente:** validar el flujo completo del juego,
    gestionar overrun UART, revisar inferencia de la memoria VGA y completar
    simulacion post-implementacion y pruebas en la tarjeta.
-`ConstraintsTop.xdc` asigna pines, pero aún requiere `create_clock` para
-declarar el reloj de 100 MHz al análisis temporal. Para elaborar/sintetizar el
-SoC también deben estar disponibles los IP `clk_wiz_0` y
-`batalla_naval_mem`. El repositorio no incluye un archivo `.xpr` ni las
-configuraciones de dichos IP, por lo que la jerarquía RTL no basta para
-reproducir una implementación Vivado desde cero.
+`ConstraintsTop.xdc` asigna los pines de Basys 3 y declara el reloj primario
+de 100 MHz. Para sintetizar el SoC, configure `clk_wiz_0` con entrada
+`clk_in1` de 100 MHz y salidas `clk_fpga` de 100 MHz y `clk_vga` de 25 MHz.
+También debe estar disponible el IP `batalla_naval_mem`. El repositorio no
+incluye un archivo `.xpr` ni las configuraciones de dichos IP, por lo que la
+jerarquía RTL no basta para reproducir una implementación Vivado desde cero.
 
 Ver diagrama de flujo de la aplicación en `docs/diseño/Imagenes` (pestaña "Flujo programa principal" del archivo `Proyecto3_BatallaNaval_Diagramas.drawio`, adaptable al flujo de `main.py`).
 

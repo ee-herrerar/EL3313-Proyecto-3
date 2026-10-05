@@ -35,12 +35,13 @@ Vivado deben verificarse por separado.
 ## Estado de Vivado
 
 El top de integración es `soc_top`; `vga_top_dut_board` es un top independiente
-para la demostración VGA. El SoC instancia `clk_wiz_0` para generar el reloj
-VGA y `batalla_naval_mem` para la ROM. No se encontró en el repositorio un
-proyecto `.xpr` ni los archivos de configuración de esos IP; deben estar
-disponibles o regenerarse en Vivado para reproducir la síntesis. Consulte
-[`constraints/README.md`](constraints/README.md) para las restricciones y
-pendientes de cada top.
+para la demostración VGA. El SoC instancia `clk_wiz_0`: desde `clk_in1` de
+100 MHz genera `clk_fpga` de 100 MHz para el sistema y `clk_vga` de 25 MHz
+para VGA. También instancia `batalla_naval_mem` para la ROM. No se encontró en
+el repositorio un proyecto `.xpr` ni los archivos de configuración de esos IP;
+deben estar disponibles o regenerarse en Vivado para reproducir la síntesis.
+Consulte [`constraints/README.md`](constraints/README.md) para las
+restricciones y pendientes de cada top.
 
 ## Aplicación del Jugador 2
 

@@ -1,12 +1,13 @@
 ## ConstraintsTop.xdc
-## Target: Basys3, xc7a35tcpg236-1
+## Target: Basys 3, xc7a35tcpg236-1
 ## Top-level: soc_top
 
 ## System clock: Basys3 100 MHz oscillator
 set_property -dict { PACKAGE_PIN W5 IOSTANDARD LVCMOS33 } [get_ports clk100mhz]
+create_clock -name sys_clk -period 10.000 -waveform {0 5} [get_ports clk100mhz]
 
 ## Pushbuttons, active high
-## btnC is the system reset; btnU/D/L/R map to GPIO bits 5:2.
+## btnC is reset/GPIO bit 6; btnU/D/L/R map to GPIO bits 5:2.
 set_property -dict { PACKAGE_PIN U18 IOSTANDARD LVCMOS33 } [get_ports btnC]
 set_property -dict { PACKAGE_PIN T18 IOSTANDARD LVCMOS33 } [get_ports btnU]
 set_property -dict { PACKAGE_PIN U17 IOSTANDARD LVCMOS33 } [get_ports btnD]
