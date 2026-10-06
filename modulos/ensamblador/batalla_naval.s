@@ -2210,6 +2210,150 @@ vga_write:
 
 
 # ===========================================================================
+# VGA GAME OVER
+#
+# a0:
+#   0 = gana J1
+#   1 = gana J2
+#
+# Dibuja "J1" o "J2" en grande usando tiles verdes.
+# ===========================================================================
+
+render_game_over:
+
+    addi    sp, sp, -8
+    sw      ra, 4(sp)
+    sw      s8, 0(sp)
+
+    mv      s8, a0
+
+    jal     ra, clear_vga
+
+
+    # Color verde / HUD
+    li      a1, 4
+
+
+    # -------------------------------------------------------
+    # Letra J, filas 5..9, columnas 5..7
+    # Patron:
+    #   ###
+    #     #
+    #     #
+    #   # #
+    #   ###
+    # -------------------------------------------------------
+
+    li      a0, 105
+    jal     ra, vga_write
+    li      a0, 106
+    jal     ra, vga_write
+    li      a0, 107
+    jal     ra, vga_write
+
+    li      a0, 127
+    jal     ra, vga_write
+
+    li      a0, 147
+    jal     ra, vga_write
+
+    li      a0, 165
+    jal     ra, vga_write
+    li      a0, 167
+    jal     ra, vga_write
+
+    li      a0, 185
+    jal     ra, vga_write
+    li      a0, 186
+    jal     ra, vga_write
+    li      a0, 187
+    jal     ra, vga_write
+
+
+    # Ganador J1 o J2
+    beq     s8, x0, render_game_over_j1
+
+
+render_game_over_j2:
+
+    # Digito 2, filas 5..9, columnas 11..13
+    #   ###
+    #     #
+    #   ###
+    #   #
+    #   ###
+
+    li      a0, 111
+    jal     ra, vga_write
+    li      a0, 112
+    jal     ra, vga_write
+    li      a0, 113
+    jal     ra, vga_write
+
+    li      a0, 133
+    jal     ra, vga_write
+
+    li      a0, 151
+    jal     ra, vga_write
+    li      a0, 152
+    jal     ra, vga_write
+    li      a0, 153
+    jal     ra, vga_write
+
+    li      a0, 171
+    jal     ra, vga_write
+
+    li      a0, 191
+    jal     ra, vga_write
+    li      a0, 192
+    jal     ra, vga_write
+    li      a0, 193
+    jal     ra, vga_write
+
+    jal     x0, render_game_over_done
+
+
+render_game_over_j1:
+
+    # Digito 1, filas 5..9, columnas 11..13
+    #    #
+    #   ##
+    #    #
+    #    #
+    #   ###
+
+    li      a0, 112
+    jal     ra, vga_write
+
+    li      a0, 131
+    jal     ra, vga_write
+    li      a0, 132
+    jal     ra, vga_write
+
+    li      a0, 152
+    jal     ra, vga_write
+
+    li      a0, 172
+    jal     ra, vga_write
+
+    li      a0, 191
+    jal     ra, vga_write
+    li      a0, 192
+    jal     ra, vga_write
+    li      a0, 193
+    jal     ra, vga_write
+
+
+render_game_over_done:
+
+    lw      s8, 0(sp)
+    lw      ra, 4(sp)
+    addi    sp, sp, 8
+
+    jalr    x0, 0(ra)
+
+
+# ===========================================================================
 # UART TX BYTE
 # ===========================================================================
 
@@ -2829,6 +2973,13 @@ winner_common:
     # Display
 
     jal     ra, update_score_display
+
+
+    # VGA: mostrar ganador
+
+    li      t0, FRAME_BUF
+    lbu     a0, 0(t0)
+    jal     ra, render_game_over
 
 
     # -------------------------------------------------------

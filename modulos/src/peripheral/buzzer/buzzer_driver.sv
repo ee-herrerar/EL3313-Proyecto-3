@@ -3,7 +3,7 @@ module buzzer_driver #(
     parameter integer IMPACTO_FREQ_HZ  = 1200, parameter integer IMPACTO_MS  = 100,
     parameter integer FALLO_FREQ_HZ    = 300,  parameter integer FALLO_MS    = 120,
     parameter integer HUNDIDO_FREQ_HZ  = 600,  parameter integer HUNDIDO_MS  = 400,
-    parameter integer INVALIDO_FREQ_HZ = 150,  parameter integer INVALIDO_MS = 200,
+    parameter integer INVALIDO_FREQ_HZ = 2000,  parameter integer INVALIDO_MS = 200,
     parameter integer VICTORIA_FREQ_HZ = 900,  parameter integer VICTORIA_MS = 800
 )(
     input  logic clk,

@@ -155,8 +155,10 @@ set_property -dict { PACKAGE_PIN W4 IOSTANDARD LVCMOS33 } [get_ports {an[3]}]
 ## JA1 = FPGA package pin J1
 ## ========================================================================
 
-set_property -dict { PACKAGE_PIN J1 IOSTANDARD LVCMOS33 } [get_ports buzzer]
+## Buzzer - Pmod JA2
+set_property PACKAGE_PIN L2 [get_ports buzzer]
 
+set_property IOSTANDARD LVCMOS33 [get_ports buzzer]
 
 ## ========================================================================
 ## VGA - RED
