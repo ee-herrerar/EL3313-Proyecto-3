@@ -10,6 +10,7 @@ Proyecto: Batalla Naval: juego de dos jugadores sobre un microprocesador RISC-V 
 Plataforma FPGA: Digilent Basys 3
 
 ### Resumen 
+
 ### Introducción 
 El objetivo de este proyecto es la implementación del juego batalla naval ("Battleship") integrando elementos como un microprocesador basado en la arquitectura RISC-V, lógica del juego en lenguaje ensamblador, periféricos mapeados a memoria y la generación de video con VGA. El batalla naval puede ser jugado por dos jugadores a la vez, donde de el jugador 1 interactúa por medio de la FPGA, utilizando los botones locales para colocar barcos y disparar, mientras observa el transcurso de la partida desde el monitor VGA, por otro lado, el jugador 2 interactúa con el juego por medio de una aplicación de PC (Python) que se comunica con la FPGA mediante protocolo UART.   
 
@@ -76,7 +77,6 @@ El generador de inmediatos es el modulo que se encarga de generar un valor inmed
 Este modulo se encarga de comparar dos registros y determinar si se debe realizar un salto o no, si se determina que debe realizarse un salto, se carga la nueva dirección de salto en el contador de programa `PCTarget`, de lo contrario este continua aumentando la cuenta secuencialmente. En este microprocesador, las funciones de comprador de branch se reparten entre los módulos de ALU y la unidad de control, en lugar de un modulo propio. 
 ALU genera las señales `less` y `zero` a partir de sus entradas, `zero` en caso de que la operación de ALU tuviese resultado 0 y `less` si `SrcA < SrcB` realizando una comparación con signo, estas señales se envían a `control_unit` donde se determina el tipo de branch, de esta forma obteniendo el valor que determinara el siguiente valor del PC `PCSrc`.
 
-
 ##### Contador de programa
 Este modulo recibe la dirección de la instrucción y la mantiene durante el periodo, una vez se completa la instrucción el contador aumenta cuatro. El modulo mantiene la dirección de 32 bits llamada `PC` en el código y la actualiza en cada flanco de reloj `clk`, el valor nuevo que se almacenara tiene por nombre `PCnext` y es generado por el mux del datapath `u_pcmux`. En la siguiente figura se presenta la relación de estas señales con el contador:
 
@@ -94,10 +94,23 @@ Esta unidad se encarga de controlar el resto de módulos por medio de señales d
 #### ROM
 Este modulo es la memoria de instrucciones del procesador `instr_mem` recibe una dirección que apunta a una dirección en la memoria de instrucciones llamada `A` y devuelve la instrucción que almacena en la salida `RD`, ambas de 32 bits.
 
+<p align="center">
+  <img src="../diseño/Imagenes/ROM.png" width="300">
+</p>
+
+<p align="center">
+  <b>Figura 2. Memoria de instrucciones ROM </b> 
+</p>
+
 #### RAM
 La memoria de datos RAM se encarga de almacenar los valores que se requiere que perduren en el procesador. En el modulo `data_mem` se implementa una memoria de 256 que se mantiene en el `datapath`, por otro lado, en el `soc_top` se implementa la memoria mapeada en el bus de datos `soc_data_ram` con 1024 palabras de 32 bits a partir de la dirección base `0x00002000`.
 
-
+<p align="center">
+  <img src="../diseño/Imagenes/RAM.png" width="300">
+</p>
+<p align="center">
+  <b>Figura 2. Memoria RAM. </b> 
+</p>
 
 #### Periférico: VGA
 VGA (Video Graphics Array) es un estándar de visualización en monitores analógicos con una resolución de 640x480@60Hz (resolución que se usara en este caso), que indica 640 pixeles de ancho y 480 pixeles de alto con una frecuencia de actualización de pantalla de 60Hz. La FPGA basys 3 sintetiza el controlador de la VGA, este se encarga de generar pulsos de sincronización verticales y horizontales que coordinen la presentación de video en la pantalla (sincronismos), también se encarga de acceder a la memoria de video y aplicar los datos conforme se va recorriendo cada pixel, actualizando la información de cada uno []. El controlador realiza la coordinación según el reloj la VGA de 25MHz, el cual también es generado por la FPGA.    
@@ -124,6 +137,14 @@ Para la aplicación de este periférico se genero un modulo de sincronismos `vga
   
 </div>
 
+<p align="center">
+  <img src="../diseño/Imagenes/Diagrama VGA.png" width="600">
+</p>
+
+<p align="center">
+  <b>Figura 2. Interconexión de módulos en la VGA </b> 
+</p>
+
 (corregir) 
 #### Protocolo UART y aplicación PC
 #### Periféricos
@@ -137,4 +158,4 @@ Para la aplicación de este periférico se genero un modulo de sincronismos `vga
 
 ### Conclusiones  
 
- 
+### Referencias  
