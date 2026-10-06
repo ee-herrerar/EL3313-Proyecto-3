@@ -172,7 +172,8 @@ Reset: el diseño usa reset asíncrono en activo alto (posedge rst_i). Se recomi
 Condición de carrera en tx_busy: una escritura a Datos TX con la FSM en STOP justo en el ciclo de tx_done_tick dejaría tx_busy en 1 sin transmisión. No ocurre si el software respeta el sondeo de tx_busy antes de escribir.
 
 
-[insertar diagramas]
+[insertar diagrama tercer nivel]
+[insertar diagrama cuarto nivel]
 
 #### Periféricos
 ##### Displays
@@ -183,16 +184,69 @@ Los displays de 7 segmentos de la tarjeta (ánodo común) comparten las líneas 
 
 En el proyecto, los displays muestran el contador acumulado de partidas ganadas (00–99) de cada jugador desde el último reinicio general.
 
+Mapa registros:
+Un único registro de datos en 0x0001_0130 (addr_i = 00). Lecturas a otras direcciones internas devuelven 0.
+
+| Bits	| Contenido (BCD)	| Dígito físico (Basys 3, an)|
+| :--- | :--- | :--- | 
+|[3:0]	| Decenas Jugador 1 |	AN0 (an = 1110, derecha)|
+|[7:4]	| Unidades Jugador 1	| AN1 (an = 1101)|
+|[11:8]	| Decenas Jugador 2	| AN2 (an = 1011)|
+|[15:12]	| Unidades Jugador | 2	AN3 (an = 0111, izquierda)|
+|[31:16]	| Sin uso (se ignora)|   --- |
+
+Cada nibble acepta BCD 0–9; cualquier otro valor apaga todos los segmentos (dígito en blanco).
+
+Multiplexación:
+
+El contador de refresco de 16 bits se carga con 0xFFFF y decrementa hasta 0; al llegar a 0 incrementa digit_sel (2 bits, módulo 4) y se recarga.
+
+|Magnitud|	Valor|
+| :--- | :--- |
+|Ciclos por dígito	|65 536|
+|Tiempo por dígito	|655,36 µs|
+|Frecuencia de cambio de dígito	|100 MHz / 65 536 ≈ 1,526 kHz|
+|Frecuencia de refresco por dígito	|≈ 1,526 kHz / 4 ≈ 381 Hz|
+
+381 Hz está muy por encima del umbral de parpadeo perceptible y es lo bastante baja para que el brillo sea uniforme y el tiempo de apagado de los segmentos no cause ghosting notable. Un decodificador combinacional elige digit_value y an en función de digit_sel.
+
+Decodificador BCD a 7 segmentos (activo en bajo)
+
+|Dígito	|seg[6:0] = gfedcba|
+| :--- | :--- |
+|0	| 1000000|
+|1	| 1111001|
+|2	| 0100100|
+|3	| 0110000|
+|4	| 0011001|
+|5	| 0010010|
+|6	| 0000010|
+|7	| 1111000|
+|8	| 0000000|
+|9	| 0010000|
+
+El punto decimal permanece apagado (dp = 1). Todas las asignaciones tienen un default y valores por defecto en la lógica combinacional, por lo que no se infieren latches.
+
+[insertar diagrama tercer nivel]
+[insertar diagrama cuarto nivel]
+
 ##### Botones
 
 El periférico j1_input implementa la interfaz de lectura de las entradas físicas del Jugador 1 (botones de la tarjeta FPGA) siguiendo la interfaz estándar de periféricos de registros definida en la especificación del proyecto: clk_i, rst_i, write_enable_i, addr_i[1:0], wdata_i[31:0] y rdata_o[31:0]. El periférico expone un único registro de ESTADO en la dirección addr_i = 2'b00, correspondiente a la dirección mapeada 0x0001_0120 del mapa de memoria del sistema.
 
 Las entradas físicas se reciben por el puerto btns_in[6:0], que agrupa los siete botones requeridos por la especificación: navegación (arriba, abajo, izquierda, derecha), selección/rotación (BTN_SEL), confirmación (BTN_OK) y reinicio (BTN_RST). El mapeo exacto de bits 
+
+[insertar diagrama tercer nivel]
+[insertar diagrama cuarto nivel]
+
 ##### Buzzer 
 
 El periférico buzzer implementa la generación de retroalimentación sonora distintiva para los cinco eventos requeridos por la especificación: impacto, fallo, barco hundido, colocación inválida y victoria. Sigue la interfaz estándar de periféricos de registros y expone un único registro de CONTROL en addr_i = 2'b00, correspondiente a la dirección mapeada 0x0001_0140.
 
 El CPU escribe en el registro de control un código de evento de 3 bits (wdata_i[2:0]) para disparar la señal sonora correspondiente. La Tabla 2 documenta la codificación.
+
+[insertar diagrama tercer nivel]
+[insertar diagrama cuarto nivel]
 
 ### Presentación de Resultados 
 
