@@ -79,10 +79,53 @@ Tabla 1. Tiempos y pixeles de VGA.
 | Whole Vertical Line | 16.683 μs | 525 | 
 
 #### Protocolo UART y aplicación PC
+
+La UART (Universal Asynchronous Receiver/Transmitter) es un enlace serial asíncrono sin línea de reloj compartida. Cada byte se encapsula en una trama 8N1: 1 bit de inicio (nivel bajo), 8 bits de datos enviados LSB primero, ningún bit de paridad y 1 bit de parada (nivel alto). La línea en reposo permanece en alto.
+
+Como transmisor y receptor no comparten reloj, el receptor debe reconstruir la temporización a partir del flanco de bajada del bit de inicio. Para ello se usa sobremuestreo 16×: un generador produce un pulso s_tick a 16 veces la tasa de baudios, y el receptor cuenta ticks para ubicar el muestreo en el centro de cada bit, donde la señal es más estable y se maximiza la tolerancia a errores de frecuencia.
+
+Además, rx es una entrada asíncrona al dominio de reloj de 100 MHz, por lo que debe pasar por un sincronizador de dos flip-flops para reducir la probabilidad de metaestabilidad.
+
+En este proyecto la UART es el único canal del Jugador 2 con la partida, a 115200 baudios (requisito de la sección 4.5.3 del enunciado). Se reutiliza el diseño del Proyecto 2 con la interfaz de registros solicitada.
+
+| Módulo	| Función |
+| :--- | :--- |
+|uart_generador_baudios |	Divisor de frecuencia que genera s_tick a 16 × BAUD_RATE. |
+|uart_rx |	Receptor: sincronizador de 2 FF + FSM de 4 estados + registro de desplazamiento. |
+|uart_tx | Transmisor: FSM de 4 estados + registro de desplazamiento. |
+|uart_top |	Envoltura con interfaz estándar de periféricos, banderas de estado y mapeo en memoria. |
+
+Generador de baudios:
+
+Parámetros: SYS_CLK_FREQ = 100 MHz, BAUD_RATE = 115200, OVERSAMPLE = 16.
+
+$$\text{DIVISOR} = \left\lfloor \frac{100\,000\,000}{115\,200 \times 16} \right\rfloor = \lfloor 54{,}25 \rfloor = 54$$
+
+Un contador de $clog2(54) = 6 bits cuenta de 0 a DIVISOR-1 = 53 y emite s_tick durante un ciclo de reloj al llegar al final, reiniciándose a 0.
+
+El truncamiento a entero introduce un error de 0,47 %, muy inferior a la tolerancia típica de una UART 8N1 (≈ ±3 a ±5 % acumulado en la trama), por lo que no se requiere un divisor fraccionario. La comunicación con pyserial a 115200 es compatible.
+
+[insertar diagramas]
+
 #### Periféricos
 ##### Displays
+
+Los displays de 7 segmentos de la tarjeta (ánodo común) comparten las líneas de segmentos entre los dígitos, y cada dígito se habilita con su propio ánodo. Para mostrar varios dígitos con pocos pines se emplea multiplexación temporal: en cada instante solo un dígito está encendido, y la persistencia de la visión da la ilusión de que todos permanecen activos si la tasa de refresco supera aproximadamente 60 Hz por dígito.
+
+Ánodos y segmentos son activos en bajo (an = 0 habilita el dígito; seg[i] = 0 enciende el segmento). El orden de seg es {g,f,e,d,c,b,a}.
+
+En el proyecto, los displays muestran el contador acumulado de partidas ganadas (00–99) de cada jugador desde el último reinicio general.
+
 ##### Botones
+
+El periférico j1_input implementa la interfaz de lectura de las entradas físicas del Jugador 1 (botones de la tarjeta FPGA) siguiendo la interfaz estándar de periféricos de registros definida en la especificación del proyecto: clk_i, rst_i, write_enable_i, addr_i[1:0], wdata_i[31:0] y rdata_o[31:0]. El periférico expone un único registro de ESTADO en la dirección addr_i = 2'b00, correspondiente a la dirección mapeada 0x0001_0120 del mapa de memoria del sistema.
+
+Las entradas físicas se reciben por el puerto btns_in[6:0], que agrupa los siete botones requeridos por la especificación: navegación (arriba, abajo, izquierda, derecha), selección/rotación (BTN_SEL), confirmación (BTN_OK) y reinicio (BTN_RST). El mapeo exacto de bits 
 ##### Buzzer 
+
+El periférico buzzer implementa la generación de retroalimentación sonora distintiva para los cinco eventos requeridos por la especificación: impacto, fallo, barco hundido, colocación inválida y victoria. Sigue la interfaz estándar de periféricos de registros y expone un único registro de CONTROL en addr_i = 2'b00, correspondiente a la dirección mapeada 0x0001_0140.
+
+El CPU escribe en el registro de control un código de evento de 3 bits (wdata_i[2:0]) para disparar la señal sonora correspondiente. La Tabla 2 documenta la codificación.
 
 ### Presentación de Resultados 
 
