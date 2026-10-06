@@ -79,6 +79,7 @@ Tabla 1. Tiempos y pixeles de VGA.
 | Whole Vertical Line | 16.683 μs | 525 | 
 
 #### Protocolo UART y aplicación PC
+##### UARTH
 
 La UART (Universal Asynchronous Receiver/Transmitter) es un enlace serial asíncrono sin línea de reloj compartida. Cada byte se encapsula en una trama 8N1: 1 bit de inicio (nivel bajo), 8 bits de datos enviados LSB primero, ningún bit de paridad y 1 bit de parada (nivel alto). La línea en reposo permanece en alto.
 
@@ -175,6 +176,16 @@ Condición de carrera en tx_busy: una escritura a Datos TX con la FSM en STOP ju
 [insertar diagrama tercer nivel]
 [insertar diagrama cuarto nivel]
 
+##### Aplicacion Python
+
+Como parte de la arquitectura distribuida del sistema, se desarrolló una suite de software en lenguaje Python que actúa como la terminal de entrada/salida remota para el Jugador 2. Siguiendo estrictamente las especificaciones del proyecto, la lógica del juego, las validaciones definitivas de disparos/posiciones y la condición de victoria se ejecutan exclusivamente en el microprocesador RISC-V dentro de la FPGA. La aplicación en PC cumple el rol de terminal gráfica e interactiva en modo texto, facilitando la transmisión y recepción de datos a través de comunicación serial (UART a 115200 baudios, 8N1).
+
+Módulo del Protocolo UART:
+
+Este módulo define las constantes del protocolo de la capa de aplicación, la estructura de las tramas seriales y un analizador sintáctico (parser) orientado a flujos de bytes.
+
+[Desarrollar explicacion, diagrama de flujo]
+
 #### Periféricos
 ##### Displays
 
@@ -243,7 +254,50 @@ Las entradas físicas se reciben por el puerto btns_in[6:0], que agrupa los siet
 
 El periférico buzzer implementa la generación de retroalimentación sonora distintiva para los cinco eventos requeridos por la especificación: impacto, fallo, barco hundido, colocación inválida y victoria. Sigue la interfaz estándar de periféricos de registros y expone un único registro de CONTROL en addr_i = 2'b00, correspondiente a la dirección mapeada 0x0001_0140.
 
-El CPU escribe en el registro de control un código de evento de 3 bits (wdata_i[2:0]) para disparar la señal sonora correspondiente. La Tabla 2 documenta la codificación.
+El CPU escribe en el registro de control un código de evento de 3 bits (wdata_i[2:0]) para disparar la señal sonora correspondiente. La siguiente Tabla documenta la codificación.
+
+
+|wdata_i[2:0]	|Evento	|Frecuencia	|Duración|
+| :--- | :--- | :--- | :--- |
+|3'd1	|Impacto	|1200 Hz|	100 ms|
+|3'd2	|Fallo	|300 Hz|	120 ms|
+|3'd3|	Barco hundido|	600 Hz	|400 ms|
+|3'd4	|Colocación inválida	| 150 Hz|	200 ms|
+|3'd5	|Victoria	|900 Hz|	800 ms|
+|3'd0, 3'd6, 3'd7	|Sin evento|	—|	—|
+
+La lectura del registro (write_enable_i = 0) devuelve {29'b0, evento}, es decir, el último código de evento escrito. Esto permite al software verificar el estado del periférico si fuera necesario, aunque en la operación normal del juego el CPU solo escribe.
+
+Arquitectura del driver :
+
+El módulo buzzer_driver es el núcleo de generación de la señal PWM. Su funcionamiento se basa en un único contador de duración y un contador de semiperiodo, y en una máquina de estados implícita con dos estados: active = 0 (reposo) y active = 1 (generando tono).  todos los parámetros de frecuencia y duración son configurables mediante parameter integer, lo que permite ajustar los tonos sin modificar la lógica. Los valores por defecto se listan en la Tabla. a partir de CLK_FREQ_HZ y las frecuencias objetivo se calculan los semiperiodos en ciclos de reloj:
+
+$$\text{HALF} = \left\lfloor \frac{CLK}{2f} \right\rfloor $$
+
+$$\text{DIVISOR} = \left\lfloor \frac{CLK * MS}{1000} \right\rfloor $$
+
+Se utiliza la función max5 para determinar el máximo semiperiodo y la máxima duración entre los cinco eventos, y a partir de ellos se dimensionan los anchos de bits HALF_WIDTH y DUR_WIDTH con $clog2. Esto garantiza que los contadores tengan el tamaño justo para el peor caso, optimizando el uso de recursos
+
+Logica secuencial:
+
+el bloque always_ff @(posedge clk) implementa la prioridad de eventos y la generación del tono:
+
+Reset: todos los registros a cero y buzzer_pwm = 0.
+
+Detección de pulsos: si alguno de los *_pulse está activo, se carga el semiperiodo y la duración correspondientes, se reinicia el contador de toggle, se activa active y se pone buzzer_pwm = 0. La prioridad es impacto > fallo > hundido > inválido > victoria, aunque en la operación normal del juego los eventos son mutuamente excluyentes en un mismo ciclo.
+
+Generación del tono: mientras active = 1, el contador de duración decrementa en cada ciclo. El contador de toggle incrementa hasta half_period - 1, momento en el cual se reinicia y se conmuta buzzer_pwm. Cuando duration_cnt llega a cero, active se desactiva y buzzer_pwm vuelve a cero.
+
+De esta forma, la señal buzzer_pwm es una onda cuadrada de frecuencia 
+
+$$\text{HALF} = \left\lfloor \frac{CLK}{2f} \right\rfloor $$
+
+que se mantiene activa durante DUR ciclos. La frecuencia y la duración son independientes para cada evento, lo que permite distinguirlos auditivamente.
+
+Decodificación de eventos:
+El módulo buzzer_perifico actúa como envoltorio del driver y realiza la decodificación del código de evento. Los pulsos son de un solo ciclo de reloj, ya que write_strobe solo es válido durante el ciclo en que el CPU ejecuta la escritura. Esto es suficiente porque el driver captura el pulso y genera el tono completo de forma autónoma..
+
+
 
 [insertar diagrama tercer nivel]
 [insertar diagrama cuarto nivel]
