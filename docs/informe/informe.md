@@ -88,6 +88,9 @@ Además, rx es una entrada asíncrona al dominio de reloj de 100 MHz, por lo que
 
 En este proyecto la UART es el único canal del Jugador 2 con la partida, a 115200 baudios (requisito de la sección 4.5.3 del enunciado). Se reutiliza el diseño del Proyecto 2 con la interfaz de registros solicitada.
 
+<img width="491" height="451" alt="fsm_receptor" src="https://github.com/user-attachments/assets/5db07a30-931b-4e23-87f5-145742e62fc7" />
+
+
 | Módulo	| Función |
 | :--- | :--- |
 |uart_generador_baudios |	Divisor de frecuencia que genera s_tick a 16 × BAUD_RATE. |
