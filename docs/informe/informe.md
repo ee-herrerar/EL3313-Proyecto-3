@@ -88,8 +88,6 @@ Además, rx es una entrada asíncrona al dominio de reloj de 100 MHz, por lo que
 
 En este proyecto la UART es el único canal del Jugador 2 con la partida, a 115200 baudios (requisito de la sección 4.5.3 del enunciado). Se reutiliza el diseño del Proyecto 2 con la interfaz de registros solicitada.
 
-<img width="491" height="451" alt="fsm_receptor" src="https://github.com/user-attachments/assets/5db07a30-931b-4e23-87f5-145742e62fc7" />
-
 
 | Módulo	| Función |
 | :--- | :--- |
@@ -107,6 +105,72 @@ $$\text{DIVISOR} = \left\lfloor \frac{100\,000\,000}{115\,200 \times 16} \right\
 Un contador de $clog2(54) = 6 bits cuenta de 0 a DIVISOR-1 = 53 y emite s_tick durante un ciclo de reloj al llegar al final, reiniciándose a 0.
 
 El truncamiento a entero introduce un error de 0,47 %, muy inferior a la tolerancia típica de una UART 8N1 (≈ ±3 a ±5 % acumulado en la trama), por lo que no se requiere un divisor fraccionario. La comunicación con pyserial a 115200 es compatible.
+
+Diagrama de estados receceptor:
+
+<img width="491" height="451" alt="fsm_receptor" src="https://github.com/user-attachments/assets/5db07a30-931b-4e23-87f5-145742e62fc7" />
+
+
+Sincronización: rx_sync_0 → rx_sync (dos FF, inicializados en 1 para que el reset equivalga a línea en reposo).
+
+IDLE: espera el flanco de bajada (rx_sync = 0) y reinicia el contador de ticks.
+
+START: cuenta 8 ticks (SB_TICK/2) para posicionarse en el centro del bit de inicio. Esto sirve además de filtro de glitches de corta duración.
+
+DATA: cada 16 ticks (un bit completo, es decir, el centro del siguiente bit) desplaza rx_sync por el extremo MSB de b_reg (desplazamiento a la derecha, LSB llega primero). Tras 8 bits pasa a STOP.
+
+STOP: espera 16 ticks más y emite rx_done_tick durante un ciclo. Los datos quedan disponibles en dout.
+
+Todos los puntos de muestreo caen a 8 + 16·k ticks del flanco detectado, es decir, en el centro de cada bit con una incertidumbre de ±1 tick (±1/16 de bit) por la asincronía entre el flanco y s_tick.
+
+Diagrama de estados transmisor:
+
+<img width="358" height="278" alt="fsm_transmisor" src="https://github.com/user-attachments/assets/ca1636fa-58b1-4787-8114-3cbf65c93238" />
+
+
+La salida tx proviene de un registro (tx_reg), lo que evita glitches en el pin físico.
+
+El byte se captura en b_reg en el ciclo en que llega tx_start, por lo que wdata_i solo debe ser válido durante la escritura.
+
+tx_start se ignora si la FSM no está en IDLE; por eso el software debe consultar tx_busy antes de escribir.
+
+
+Interfaz con el CPU y mapa de registros:
+
+Interfaz estándar de periféricos: clk_i, rst_i, write_enable_i, addr_i[1:0], wdata_i[31:0], rdata_o[31:0]. Los pines físicos son rx_pin y tx_pin.
+
+| Módulo	| offset | Direccion | addr_i | Acceso | Lectura| 
+| :--- | :--- | :--- | :--- |  :--- | :--- |
+|Control/Estado |	0x00 |	0x0001_0040	| 00 |	Lectura | bit 0 = tx_busy, bit 1 = rx_valid, resto 0|
+|Datos TX |	0x04|	0x0001_0044	| 01	| Escritura	| bits [7:0] = byte a transmitir (lectura devuelve 0)|
+|Datos RX |	0x08|	0x0001_0048 |	10	| Lectura	| bits [7:0] = último byte recibido|
+
+Decisiones de diseño y justificación:
+
+Sobremuestreo 16×: permite muestrear en el centro del bit y tolerar el desajuste entre relojes; es la estructura clásica para UART en FPGA y reutiliza el diseño validado en el Proyecto 2.
+
+Sincronizador de 2 FF en rx: la señal proviene de otro dominio (PC); sin él puede haber metaestabilidad.
+
+FSM de dos procesos (registro + lógica combinacional) con valores por defecto: evita latches y facilita el análisis, tal como exige el enunciado.
+
+Limpieza de rx_valid por lectura: el software no necesita un acceso de escritura adicional para reconocer el dato, lo que simplifica el lazo de sondeo en ensamblador.
+
+Sondeo (polling) en lugar de interrupciones: el subconjunto rv32i requerido no incluye CSR ni manejo de interrupciones; el programa único y determinístico consulta las banderas.
+
+El periférico solo forma tramas a nivel de bit: no conoce el protocolo de aplicación ni las reglas del juego, cumpliendo la sección 4.1 del enunciado.
+
+Consideraciones de integración y limitaciones:
+
+Sin FIFO ni detección de sobreescritura: el periférico tiene un único registro de recepción. Un byte llega cada 86,4 µs como mínimo (≈ 8 640 ciclos); el programa debe sondear rx_valid con una frecuencia mayor y leer el byte antes de que llegue el siguiente. 
+
+Las tramas del protocolo de aplicación deben diseñarse con esto en mente (por ejemplo, respuestas de la FPGA cortas y fáciles de procesar).
+
+Sin bit de error de trama: uart_rx no valida el bit de parada. Cualquier byte inválido se descarta en la capa de aplicación (requisito de la sección 4.5.3).
+Efecto de lectura: como la limpieza de rx_valid ocurre ante cualquier ciclo de lectura con addr_i = 10, el decodificador de direcciones del top debe calificar el acceso con la selección de periférico (rango 0x0001_0040–0x0001_004F). De lo contrario, la lectura de otro periférico cuyo offset coincida en addr_i[1:0] (por ejemplo, el LED en 0x0001_0138) borraría la bandera sin que el CPU haya leído el dato.
+
+Reset: el diseño usa reset asíncrono en activo alto (posedge rst_i). Se recomienda que el top sincronice la liberación del reset al reloj del sistema.
+Condición de carrera en tx_busy: una escritura a Datos TX con la FSM en STOP justo en el ciclo de tx_done_tick dejaría tx_busy en 1 sin transmisión. No ocurre si el software respeta el sondeo de tx_busy antes de escribir.
+
 
 [insertar diagramas]
 
