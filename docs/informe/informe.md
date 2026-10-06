@@ -18,7 +18,29 @@ Para este proyecto la lógica del juego reside únicamente en el programa escrit
 
 #### Juego en ensamblador 
 #### Microprocesador 
-En este proyecto se hará uso de un microprocesador basado en las instrucciones rv32i de RISC-V uniciclo, lo que significa que se ejecutara una sola instrucción por ciclo. Este elemento permite realizar las operaciones requeridas por la lógica del juego, como la suma o lectura de registros.
+En este proyecto se hará uso de un microprocesador basado en las instrucciones rv32i de RISC-V uniciclo, lo que significa que se ejecutara una sola instrucción por ciclo. Este sistema permite realizar las operaciones requeridas por la lógica del juego, como la suma o lectura de registros. En esta sección se explica la función de cada parte que lo compone, para el desarrollo de cada modulo se uso como base el código, conocimientos y bibliografía de cursos pasados pasados. En la tabla # se muestran las instrucciones soportadas por el microprocesador.
+
+<p align="center">
+  <b>Tabla 1. Instrucciones soportadas por el microprocesador. </b> 
+</p>
+<div align="center">
+  
+| Instrucciones                         | Estado actual                                                                                                                         |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `add`, `sub`, `and`, `or`, `xor`      | Implementadas en la ALU y decodificadas.                                                                                              |
+| `slt`, `sll`, `srl`, `sra`            | Implementadas en la ALU y decodificadas.                                                                                              |
+| `addi`, `andi`, `ori`, `xori`, `slti` | Implementadas y decodificadas.                                                                                                        |
+| `slli`, `srli`, `srai`                | Implementadas y decodificadas.                                                                                                        |
+| `beq`, `bne`, `blt`, `bge`            | Contempladas en la unidad de control.                                                                                                 |
+| `jal`                                 | Contemplada en la unidad de control y el `datapath`.                                                                                  |
+| `lb`, `lh`, `lw`, `lbu`, `lhu`        | Contempladas por la memoria de datos; falta completar la conexión de `funct3` en el `datapath`.                                       |
+| `sb`, `sh`, `sw`                      | Contempladas por la memoria de datos; falta completar la conexión de `funct3` en el `datapath`.                                       |
+| `jalr`                                | El `datapath` y `PCSrc` contemplan el salto, pero falta completar su decodificación en `main_decoder`.                                |
+| `lui`                                 | El generador de inmediatos y la ALU contemplan la operación, pero falta completar la decodificación correspondiente en `alu_decoder`. |
+| `sltu`, `sltiu`                       | La ALU contempla la comparación sin signo, pero falta completar su decodificación en `alu_decoder`.                                   |
+
+</div>
+
 #### ALU
 La unidad aritmética lógica en un procesador es la encargada de realizar operaciones aritméticas, lógicas o desplazamientos, esta tiene 3 entradas, 2 para cada operando de 32 bits (`SrcA` y `SrcB`) y una señal de control de 4 bits para indicar la operación (`ALUControl`), a partir de estas genera una señal de salida de 32 bits (`ALUResult`). Para evaluar condiciones de salto la ALU también genera las señales `less` y `zero`, estas son evaluados en la unidad de control. 
 
@@ -69,6 +91,13 @@ Este modulo recibe la dirección de la instrucción y la mantiene durante el per
 ##### Unidad de control
 Esta unidad se encarga de controlar el resto de módulos por medio de señales de control basadas en una instrucción que recibe del datapath y luego usa para determinar su como debe implementarse la misma. En este microprocesador, la unidad de control recibe el código de operación de la instrucción, los campos adicionales que diferencian ciertas operaciones e instrucciones y los valores de `less` y `zero` descritos en la sección de "comparador de branch". 
 
+#### ROM
+Este modulo es la memoria de instrucciones del procesador `instr_mem` recibe una dirección que apunta a una dirección en la memoria de instrucciones llamada `A` y devuelve la instrucción que almacena en la salida `RD`, ambas de 32 bits.
+
+#### RAM
+La memoria de datos RAM se encarga de almacenar los valores que se requiere que perduren en el procesador. En el modulo `data_mem` se implementa una memoria de 256 que se mantiene en el `datapath`, por otro lado, en el `soc_top` se implementa la memoria mapeada en el bus de datos `soc_data_ram` con 1024 palabras de 32 bits a partir de la dirección base `0x00002000`.
+
+
 
 #### Periférico: VGA
 VGA (Video Graphics Array) es un estándar de visualización en monitores analógicos con una resolución de 640x480@60Hz (resolución que se usara en este caso), que indica 640 pixeles de ancho y 480 pixeles de alto con una frecuencia de actualización de pantalla de 60Hz. La FPGA basys 3 sintetiza el controlador de la VGA, este se encarga de generar pulsos de sincronización verticales y horizontales que coordinen la presentación de video en la pantalla (sincronismos), también se encarga de acceder a la memoria de video y aplicar los datos conforme se va recorriendo cada pixel, actualizando la información de cada uno []. El controlador realiza la coordinación según el reloj la VGA de 25MHz, el cual también es generado por la FPGA.    
@@ -95,6 +124,7 @@ Para la aplicación de este periférico se genero un modulo de sincronismos `vga
   
 </div>
 
+(corregir) 
 #### Protocolo UART y aplicación PC
 #### Periféricos
 ##### Displays
