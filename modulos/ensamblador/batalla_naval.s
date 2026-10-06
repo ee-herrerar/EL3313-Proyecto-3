@@ -920,13 +920,38 @@ placement_process_frame:
     li      t5, FRAME_BUF
 
 
-    lbu     t1, 0(t5)
-    lbu     t2, 1(t5)
-    lbu     t3, 2(t5)
-    lbu     t4, 3(t5)
+    lbu     t1, 0(t5)             # ID
+    lbu     t2, 1(t5)             # fila
+    lbu     t3, 2(t5)             # columna
+    lbu     t4, 3(t5)             # orientacion
 
 
-    # Validar
+    # -------------------------------------------------------
+    # Validacion estricta del ID
+    #
+    # s3 indica cuantos barcos remotos validos ya fueron
+    # aceptados:
+    #
+    # s3 = 0 -> solamente se acepta ID 0
+    # s3 = 1 -> solamente se acepta ID 1
+    # s3 = 2 -> solamente se acepta ID 2
+    #
+    # Un ID repetido o fuera de orden se trata como parametro
+    # invalido -> reason 1.
+    # -------------------------------------------------------
+
+    beq     t1, s3, placement_remote_id_ok
+
+
+    li      a0, 2
+
+    jal     x0, placement_remote_invalid
+
+
+
+placement_remote_id_ok:
+
+    # Validar posicion, orientacion y traslape
 
     mv      a0, s1
     mv      a1, t2
@@ -1045,7 +1070,17 @@ local_turn:
     li      s8, 0
     li      s9, 0
 
+    # Mostrar cursor inicial de disparo en (0,0)
+    jal     ra, render_target_cursor
 
+local_fire_repeat:
+
+    # El disparo repetido no consume turno.
+    # Volver a mostrar el cursor en la misma posicion.
+
+    jal     ra, render_target_cursor
+
+    jal     x0, local_fire_input
 
 local_fire_input:
 
@@ -1062,11 +1097,11 @@ local_fire_input:
 
     beq     s8, x0, local_fire_input
 
-
     addi    s8, s8, -1
 
-    jal     x0, local_fire_input
+    jal     ra, render_target_cursor
 
+    jal     x0, local_fire_input
 
 
 lf_down:
@@ -1075,16 +1110,15 @@ lf_down:
 
     beq     t1, x0, lf_left
 
-
     li      t2, 7
 
     beq     s8, t2, local_fire_input
 
-
     addi    s8, s8, 1
 
-    jal     x0, local_fire_input
+    jal     ra, render_target_cursor
 
+    jal     x0, local_fire_input
 
 
 lf_left:
@@ -1093,14 +1127,13 @@ lf_left:
 
     beq     t1, x0, lf_right
 
-
     beq     s9, x0, local_fire_input
-
 
     addi    s9, s9, -1
 
-    jal     x0, local_fire_input
+    jal     ra, render_target_cursor
 
+    jal     x0, local_fire_input
 
 
 lf_right:
@@ -1109,17 +1142,15 @@ lf_right:
 
     beq     t1, x0, lf_ok
 
-
     li      t2, 7
 
     beq     s9, t2, local_fire_input
 
-
     addi    s9, s9, 1
 
+    jal     ra, render_target_cursor
+
     jal     x0, local_fire_input
-
-
 
 lf_ok:
 
@@ -1141,7 +1172,7 @@ lf_ok:
 
     li      t0, 3
 
-    beq     a0, t0, local_fire_input
+    beq     a0, t0, local_fire_repeat
 
 
     mv      t6, a0

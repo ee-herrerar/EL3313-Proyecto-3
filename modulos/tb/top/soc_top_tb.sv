@@ -260,6 +260,8 @@ module soc_top_tb;
     logic flag_led_coverage_pass        = 1'b0;
 
     logic flag_concurrent_placement_pass = 1'b0;
+    logic flag_target_cursor_pass         = 1'b0;
+    logic flag_remote_order_pass          = 1'b0;
 
 
     // ============================================================
@@ -2078,6 +2080,61 @@ module soc_top_tb;
 
 
     // ============================================================
+    // WAIT VGA REMOTE
+    // ============================================================
+
+    task automatic wait_vga_remote(
+        input integer row,
+        input integer col,
+        input logic [31:0] expected
+    );
+
+        integer idx;
+        integer n;
+
+        begin
+
+            idx =
+                remote_vga_index(
+                    row,
+                    col
+                );
+
+            n = 0;
+
+            while (
+                dut.u_vga.u_vram.vram[idx] !== expected
+            ) begin
+
+                @(posedge clk100mhz);
+
+                n = n + 1;
+
+                if (n >= WAIT_CYCLES) begin
+
+                    $display(
+                        "WAIT VGA REMOTE FAIL row=%0d col=%0d idx=%0d expected=%0d actual=%0d",
+                        row,
+                        col,
+                        idx,
+                        expected,
+                        dut.u_vga.u_vram.vram[idx]
+                    );
+
+                    tb_fatal(
+                        "Timeout esperando VGA remoto"
+                    );
+
+                end
+
+            end
+
+        end
+
+    endtask
+
+
+    // ============================================================
     // VERIFY FLEETS
     // ============================================================
 
@@ -2352,6 +2409,41 @@ module soc_top_tb;
             if (test_invalid) begin
 
                 // -----------------------------------------------
+                // ID valido, pero fuera de orden.
+                //
+                // La FPGA espera primero ship ID 0.
+                // Intentamos enviar ship ID 1.
+                // Debe responder PLACE_BAD reason=1 y no
+                // modificar el tablero remoto.
+                // -----------------------------------------------
+
+                remote_place_expect_bad(
+                    8'd1,
+                    8'd4,
+                    8'd0,
+                    8'd0,
+                    8'd1
+                );
+
+
+                expect_cell(
+                    REMOTE_BASE_IDX,
+                    4,
+                    0,
+                    32'd0
+                );
+
+
+                flag_remote_order_pass =
+                    1'b1;
+
+
+                $display(
+                    "PASS: strict remote fleet order"
+                );
+
+
+                // -----------------------------------------------
                 // Fuera del tablero
                 // validate_place=2 -> protocolo reason=1
                 // -----------------------------------------------
@@ -2449,7 +2541,7 @@ module soc_top_tb;
                 expect_int(
                     "Numero de PLACE_BAD",
                     count_place_bad - bad_before,
-                    4
+                    5
                 );
 
                 flag_remote_invalid_pass =
@@ -2992,6 +3084,98 @@ module soc_top_tb;
                 "GAME1 initial turn",
                 last_turn_player,
                 8'd0
+            );
+
+
+            // ----------------------------------------------------
+            // J1 TARGET CURSOR
+            //
+            // Al comenzar el turno de J1 el cursor debe aparecer
+            // en la casilla remota (0,0). Luego se mueve a (0,1)
+            // y regresa a (0,0) para no alterar las pruebas de
+            // disparo existentes.
+            // ----------------------------------------------------
+
+            tb_stage =
+                "GAME1 TARGET CURSOR";
+
+
+            wait_vga_remote(
+                0,
+                0,
+                32'd5
+            );
+
+
+            expect_vga_remote(
+                0,
+                0,
+                32'd5
+            );
+
+
+            // RIGHT -> (0,1)
+
+            press_gpio(
+                BTN_RIGHT
+            );
+
+
+            wait_vga_remote(
+                0,
+                1,
+                32'd5
+            );
+
+
+            expect_vga_remote(
+                0,
+                0,
+                32'd0
+            );
+
+
+            expect_vga_remote(
+                0,
+                1,
+                32'd5
+            );
+
+
+            // LEFT -> regresar a (0,0)
+
+            press_gpio(
+                BTN_LEFT
+            );
+
+
+            wait_vga_remote(
+                0,
+                0,
+                32'd5
+            );
+
+
+            expect_vga_remote(
+                0,
+                0,
+                32'd5
+            );
+
+
+            expect_vga_remote(
+                0,
+                1,
+                32'd0
+            );
+
+
+            flag_target_cursor_pass =
+                1'b1;
+
+
+            $display(
+                "PASS: J1 target cursor"
             );
 
 
@@ -4105,6 +4289,12 @@ module soc_top_tb;
             if (!flag_led_coverage_pass)
                 tb_fatal("LED coverage failed");
 
+            if (!flag_target_cursor_pass)
+                tb_fatal("J1 target cursor not tested");
+
+            if (!flag_remote_order_pass)
+                tb_fatal("Strict remote fleet order not tested");
+
 
             if (REQUIRE_CONCURRENT_PLACEMENT) begin
 
@@ -4232,6 +4422,14 @@ module soc_top_tb;
 
         $display(
             " VGA hit/miss rendering ......... PASS"
+        );
+
+        $display(
+            " J1 target cursor ............... PASS"
+        );
+
+        $display(
+            " Strict remote fleet order ...... PASS"
         );
 
         $display(
