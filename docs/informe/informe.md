@@ -374,7 +374,7 @@ El CPU escribe en el registro de control un código de evento de 3 bits (wdata_i
 |3'd5	|Victoria	|900 Hz|	800 ms|
 |3'd0, 3'd6, 3'd7	|Sin evento|	—|	—|
 
-</p>
+</div>
 
 La lectura del registro (write_enable_i = 0) devuelve {29'b0, evento}, es decir, el último código de evento escrito. Esto permite al software verificar el estado del periférico si fuera necesario, aunque en la operación normal del juego el CPU solo escribe.
 
