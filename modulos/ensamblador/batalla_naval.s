@@ -294,13 +294,25 @@ concurrent_placement:
 
 concurrent_place_loop:
 
-    # Ambos terminaron
+    # Ambos jugadores terminaron de colocar
 
     li      t0, 3
 
     bne     s10, t0, concurrent_service
     bne     s3, t0, concurrent_service
 
+
+    # IMPORTANTE:
+    # No salir de placement mientras el ultimo boton/switch
+    # local siga activo.
+    #
+    # s2 = 1 significa que todavía estamos esperando
+    # la liberación de la última pulsación.
+
+    bne     s2, x0, concurrent_service
+
+
+    # Ambos terminaron y el ultimo control ya fue liberado
 
     lw      ra, 0(sp)
 
