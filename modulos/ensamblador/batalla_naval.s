@@ -171,6 +171,7 @@ _start:
 
     jal     ra, update_score_display
     jal     ra, render_boards
+    jal     ra, render_hud_initial
 
 
     # J1 y J2 colocan concurrentemente
@@ -188,6 +189,9 @@ _start:
     li      s5, 0
     li      s10, 0
     li      s11, 0
+
+    # HUD de batalla: nombres + 3 barcos por jugador
+    jal     ra, render_hud_battle
 
 
     # Fase batalla
@@ -302,17 +306,12 @@ concurrent_place_loop:
     bne     s3, t0, concurrent_service
 
 
-    # IMPORTANTE:
-    # No salir de placement mientras el ultimo boton/switch
-    # local siga activo.
-    #
-    # s2 = 1 significa que todavía estamos esperando
-    # la liberación de la última pulsación.
+    # No salir mientras el ultimo switch siga activo
 
     bne     s2, x0, concurrent_service
 
 
-    # Ambos terminaron y el ultimo control ya fue liberado
+    # Ambos terminaron y el ultimo control fue liberado
 
     lw      ra, 0(sp)
 
@@ -328,9 +327,7 @@ concurrent_place_loop:
 
 concurrent_service:
 
-    # -------------------------------------------------------
     # UART
-    # -------------------------------------------------------
 
     li      t0, 3
 
@@ -345,8 +342,6 @@ concurrent_service:
     beq     t1, x0, concurrent_gpio
 
 
-    # Leer UN byte.
-
     lw      a0, UART_RX(gp)
 
     andi    a0, a0, 0xff
@@ -354,8 +349,6 @@ concurrent_service:
 
     jal     ra, placement_uart_feed
 
-
-    # a0 = 1 si una trama acaba de completarse.
 
     beq     a0, x0, concurrent_gpio
 
@@ -373,26 +366,17 @@ concurrent_service:
 
 concurrent_gpio:
 
-    # -------------------------------------------------------
-    # IMPORTANTE:
-    #
-    # GPIO siempre se lee, incluso despues del tercer barco.
-    #
-    # Esto permite observar la liberacion del ultimo BTN_OK.
-    # -------------------------------------------------------
-
     lw      t1, GPIO_OFF(gp)
 
     andi    t1, t1, 0x3f
 
 
-    # ¿Esperando liberacion?
+    # Esperando liberacion
 
     bne     s2, x0, concurrent_gpio_release_check
 
 
-    # Si J1 termino, no aceptar nuevos botones.
-    # Pero ya se realizo la lectura GPIO anterior.
+    # J1 ya termino
 
     li      t0, 3
 
@@ -404,16 +388,11 @@ concurrent_gpio:
     beq     t1, x0, concurrent_place_loop
 
 
-    # Nueva pulsacion
-
     jal     x0, concurrent_gpio_new_press
 
 
 
 concurrent_gpio_release_check:
-
-    # Mientras siga presionado, regresar al loop principal.
-    # NO quedarse bloqueado aqui.
 
     bne     t1, x0, concurrent_place_loop
 
@@ -431,8 +410,6 @@ concurrent_gpio_new_press:
 
     beq     t1, x0, concurrent_place_loop
 
-
-    # Marcar pulsacion como procesada
 
     li      s2, 1
 
@@ -609,21 +586,6 @@ concurrent_local_invalid:
 
 # ===========================================================================
 # PARSER UART NO BLOQUEANTE DURANTE PLACEMENT
-#
-# Entrada:
-#   a0 = byte recibido
-#
-# Salida:
-#   a0 = 0 incompleta/descartada
-#   a0 = 1 completa y valida
-#
-# Estados:
-#   0 STX
-#   1 CMD
-#   2 LEN
-#   3 PAYLOAD
-#   4 CHECKSUM
-#   5 ETX
 # ===========================================================================
 
 placement_uart_feed:
@@ -664,8 +626,6 @@ placement_uart_feed:
     beq     t1, t2, placement_uart_state_etx
 
 
-    # Estado invalido
-
     sw      x0, 0(t0)
 
 
@@ -674,10 +634,6 @@ placement_uart_feed:
     jalr    x0, 0(ra)
 
 
-
-# ---------------------------------------------------------------------------
-# STX
-# ---------------------------------------------------------------------------
 
 placement_uart_state_stx:
 
@@ -694,10 +650,6 @@ placement_uart_state_stx:
     jal     x0, placement_uart_incomplete
 
 
-
-# ---------------------------------------------------------------------------
-# CMD
-# ---------------------------------------------------------------------------
 
 placement_uart_state_cmd:
 
@@ -719,10 +671,6 @@ placement_uart_state_cmd:
     jal     x0, placement_uart_incomplete
 
 
-
-# ---------------------------------------------------------------------------
-# LEN
-# ---------------------------------------------------------------------------
 
 placement_uart_state_len:
 
@@ -774,10 +722,6 @@ placement_uart_len_zero:
 
 
 
-# ---------------------------------------------------------------------------
-# PAYLOAD
-# ---------------------------------------------------------------------------
-
 placement_uart_state_payload:
 
     li      t2, PLACE_UART_IDX
@@ -825,10 +769,6 @@ placement_uart_state_payload:
 
 
 
-# ---------------------------------------------------------------------------
-# CHECKSUM
-# ---------------------------------------------------------------------------
-
 placement_uart_state_checksum:
 
     li      t2, PLACE_UART_CHK
@@ -848,18 +788,12 @@ placement_uart_state_checksum:
 
 
 
-# ---------------------------------------------------------------------------
-# ETX
-# ---------------------------------------------------------------------------
-
 placement_uart_state_etx:
 
     li      t2, ETX
 
     bne     t6, t2, placement_uart_reset
 
-
-    # Preparar siguiente frame
 
     sw      x0, 0(t0)
 
@@ -902,8 +836,6 @@ placement_process_frame:
     sw      ra, 0(sp)
 
 
-    # CMD_PLACE
-
     li      t0, PLACE_UART_CMD
 
     lw      t1, 0(t0)
@@ -913,8 +845,6 @@ placement_process_frame:
 
     bne     t1, t0, placement_frame_done
 
-
-    # LEN = 4
 
     li      t0, PLACE_UART_LEN
 
@@ -926,31 +856,18 @@ placement_process_frame:
     bne     t1, t0, placement_frame_done
 
 
-    # Payload:
-    # ID ROW COL ORIENTATION
+    # Payload: ID ROW COL ORIENTATION
 
     li      t5, FRAME_BUF
 
 
-    lbu     t1, 0(t5)             # ID
-    lbu     t2, 1(t5)             # fila
-    lbu     t3, 2(t5)             # columna
-    lbu     t4, 3(t5)             # orientacion
+    lbu     t1, 0(t5)
+    lbu     t2, 1(t5)
+    lbu     t3, 2(t5)
+    lbu     t4, 3(t5)
 
 
-    # -------------------------------------------------------
-    # Validacion estricta del ID
-    #
-    # s3 indica cuantos barcos remotos validos ya fueron
-    # aceptados:
-    #
-    # s3 = 0 -> solamente se acepta ID 0
-    # s3 = 1 -> solamente se acepta ID 1
-    # s3 = 2 -> solamente se acepta ID 2
-    #
-    # Un ID repetido o fuera de orden se trata como parametro
-    # invalido -> reason 1.
-    # -------------------------------------------------------
+    # ID debe ser exactamente el siguiente esperado
 
     beq     t1, s3, placement_remote_id_ok
 
@@ -962,8 +879,6 @@ placement_process_frame:
 
 
 placement_remote_id_ok:
-
-    # Validar posicion, orientacion y traslape
 
     mv      a0, s1
     mv      a1, t2
@@ -977,8 +892,6 @@ placement_remote_id_ok:
     bne     a0, x0, placement_remote_invalid
 
 
-    # Recuperar payload
-
     li      t5, FRAME_BUF
 
 
@@ -987,8 +900,6 @@ placement_remote_id_ok:
     lbu     t3, 2(t5)
     lbu     t4, 3(t5)
 
-
-    # Escribir barco
 
     mv      a0, s1
     mv      a1, t2
@@ -1011,12 +922,8 @@ placement_remote_id_ok:
     addi    s3, s3, 1
 
 
-    # VGA
-
     jal     ra, render_boards
 
-
-    # Cursor local si J1 sigue colocando
 
     li      t0, 3
 
@@ -1032,9 +939,8 @@ placement_remote_id_ok:
 
 placement_remote_invalid:
 
-    # validate:
-    # 1 overlap      -> protocolo reason 0
-    # 2 fuera/rango  -> protocolo reason 1
+    # 1 overlap -> reason 0
+    # 2 rango   -> reason 1
 
     addi    a0, a0, -1
 
@@ -1049,6 +955,13 @@ placement_remote_invalid:
     li      a2, 2
 
     jal     ra, uart_send_frame
+
+
+    # Buzzer tambien para colocacion invalida desde PC
+
+    li      a0, 4
+
+    jal     ra, buzzer_write
 
 
     jal     ra, render_boards
@@ -1082,17 +995,17 @@ local_turn:
     li      s8, 0
     li      s9, 0
 
-    # Mostrar cursor inicial de disparo en (0,0)
     jal     ra, render_target_cursor
 
-local_fire_repeat:
 
-    # El disparo repetido no consume turno.
-    # Volver a mostrar el cursor en la misma posicion.
+
+local_fire_repeat:
 
     jal     ra, render_target_cursor
 
     jal     x0, local_fire_input
+
+
 
 local_fire_input:
 
@@ -1116,6 +1029,7 @@ local_fire_input:
     jal     x0, local_fire_input
 
 
+
 lf_down:
 
     andi    t1, t0, BTN_DOWN
@@ -1133,6 +1047,7 @@ lf_down:
     jal     x0, local_fire_input
 
 
+
 lf_left:
 
     andi    t1, t0, BTN_LEFT
@@ -1146,6 +1061,7 @@ lf_left:
     jal     ra, render_target_cursor
 
     jal     x0, local_fire_input
+
 
 
 lf_right:
@@ -1164,6 +1080,8 @@ lf_right:
 
     jal     x0, local_fire_input
 
+
+
 lf_ok:
 
     andi    t1, t0, BTN_OK
@@ -1171,16 +1089,12 @@ lf_ok:
     beq     t1, x0, local_fire_input
 
 
-    # Resolver disparo
-
     mv      a0, s1
     mv      a1, s8
     mv      a2, s9
 
     jal     ra, resolve_shot
 
-
-    # Repetido
 
     li      t0, 3
 
@@ -1190,12 +1104,8 @@ lf_ok:
     mv      t6, a0
 
 
-    # Disparo valido
-
     addi    s5, s5, 1
 
-
-    # Hit / sunk
 
     beq     t6, x0, local_fire_sound
 
@@ -1242,8 +1152,6 @@ local_buz:
     jal     ra, buzzer_write
 
 
-    # Informar disparo entrante a J2
-
     mv      a0, s8
     mv      a1, s9
     mv      a2, t6
@@ -1252,9 +1160,10 @@ local_buz:
 
 
     jal     ra, render_boards
+    jal     ra, render_hud_battle
 
 
-    # Victoria
+    # Victoria J1
 
     li      t0, 3
 
@@ -1311,8 +1220,6 @@ remote_turn:
     lbu     t2, 1(t5)
 
 
-    # Validar coordenadas
-
     li      t0, 7
 
     bgt     t1, t0, remote_turn
@@ -1320,16 +1227,12 @@ remote_turn:
     bgt     t2, t0, remote_turn
 
 
-    # Resolver
-
     mv      a0, s0
     mv      a1, t1
     mv      a2, t2
 
     jal     ra, resolve_shot
 
-
-    # Repetido
 
     li      t0, 3
 
@@ -1339,8 +1242,6 @@ remote_turn:
     mv      t6, a0
 
 
-    # Disparo valido
-
     addi    s5, s5, 1
 
 
@@ -1349,8 +1250,6 @@ remote_turn:
 
     addi    s3, s3, 1
 
-
-    # sunk
 
     li      t0, 2
 
@@ -1388,8 +1287,6 @@ remote_buz:
 
 remote_result:
 
-    # Recuperar coordenadas
-
     li      t5, FRAME_BUF
 
 
@@ -1407,6 +1304,7 @@ remote_result:
 
 
     jal     ra, render_boards
+    jal     ra, render_hud_battle
 
 
     # Victoria J2
@@ -1512,17 +1410,6 @@ clear_vga_done:
 
 # ===========================================================================
 # VALIDAR COLOCACION
-#
-# a0 tablero
-# a1 fila
-# a2 columna
-# a3 orientacion
-# a4 ID
-#
-# return:
-# 0 valid
-# 1 overlap
-# 2 fuera/rango invalido
 # ===========================================================================
 
 validate_place:
@@ -1718,8 +1605,6 @@ write_ship_loop:
     beq     a3, x0, write_horizontal
 
 
-    # vertical
-
     add     t2, a1, t1
 
     mv      t3, a2
@@ -1747,8 +1632,6 @@ write_address:
 
     add     t4, a0, t4
 
-
-    # ID interno = ID+1
 
     addi    t5, a4, 1
 
@@ -1793,31 +1676,21 @@ resolve_shot:
     lw      t1, 0(t0)
 
 
-    # Agua
-
     beq     t1, x0, shot_miss
 
-
-    # 4..7 ya disparado
 
     li      t2, 3
 
     blt     t2, t1, shot_repeat
 
 
-    # ID interno del barco
-
     mv      t3, t1
 
-
-    # Marcar hit
 
     addi    t4, t1, 4
 
     sw      t4, 0(t0)
 
-
-    # Buscar partes intactas
 
     li      t4, 0
 
@@ -1886,7 +1759,7 @@ shot_repeat:
 
 
 # ===========================================================================
-# VGA
+# VGA - TABLEROS
 # ===========================================================================
 
 render_boards:
@@ -1913,8 +1786,6 @@ render_row:
 
 render_col:
 
-    # indice tablero
-
     slli    t2, s8, 3
 
     add     t2, t2, s9
@@ -1922,35 +1793,25 @@ render_col:
     slli    t3, t2, 2
 
 
-    # =======================================================
     # LOCAL
-    # =======================================================
 
     add     t4, s0, t3
 
     lw      t5, 0(t4)
 
 
-    # Water
-
     beq     t5, x0, local_tile_ready
 
-
-    # Miss
 
     li      t0, 4
 
     beq     t5, t0, local_tile_miss
 
 
-    # Hit
-
     li      t0, 5
 
     bge     t5, t0, local_tile_hit
 
-
-    # Ship
 
     li      t5, 1
 
@@ -1977,16 +1838,12 @@ local_tile_ready:
     addi    t6, s8, 2
 
 
-    # row * 20
-
     slli    a0, t6, 4
 
     slli    t0, t6, 2
 
     add     a0, a0, t0
 
-
-    # local starts col 1
 
     addi    a0, a0, 1
 
@@ -1998,35 +1855,27 @@ local_tile_ready:
     jal     ra, vga_write
 
 
-    # =======================================================
     # REMOTE
-    # =======================================================
 
     add     t4, s1, t3
 
     lw      t5, 0(t4)
 
 
-    # water
-
     beq     t5, x0, remote_tile_ready
 
-
-    # miss
 
     li      t0, 4
 
     beq     t5, t0, remote_tile_miss
 
 
-    # hit
-
     li      t0, 5
 
     bge     t5, t0, remote_tile_hit
 
 
-    # ship intacto oculto
+    # barcos intactos del rival ocultos
 
     li      t5, 0
 
@@ -2070,8 +1919,6 @@ remote_tile_ready:
     jal     ra, vga_write
 
 
-    # Siguiente columna
-
     addi    s9, s9, 1
 
 
@@ -2080,8 +1927,6 @@ remote_tile_ready:
     bne     s9, t2, render_col
 
 
-    # Siguiente fila
-
     addi    s8, s8, 1
 
 
@@ -2089,8 +1934,6 @@ remote_tile_ready:
 
     bne     s8, t2, render_row
 
-
-    # Restore
 
     lw      s9, 0(sp)
 
@@ -2101,6 +1944,225 @@ remote_tile_ready:
 
     addi    sp, sp, 12
 
+
+    jalr    x0, 0(ra)
+
+
+
+# ===========================================================================
+# HUD INICIAL
+#
+# Fila VGA 0:
+#
+# J1   barco barco barco
+# J2   barco barco barco
+#
+# bits [2:0] = color
+# bits [7:3] = glifo
+#
+# Glifos:
+# 1 = J
+# 2 = 1
+# 3 = 2
+# 4 = mini barco
+# ===========================================================================
+
+render_hud_initial:
+
+    addi    sp, sp, -4
+    sw      ra, 0(sp)
+
+
+    # J1 BLANCO
+
+    li      a0, 1
+    li      a1, 11
+    jal     ra, vga_write
+
+    li      a0, 2
+    li      a1, 19
+    jal     ra, vga_write
+
+
+    # J2 BLANCO
+
+    li      a0, 11
+    li      a1, 11
+    jal     ra, vga_write
+
+    li      a0, 12
+    li      a1, 27
+    jal     ra, vga_write
+
+
+    # Barcos J1
+
+    li      a1, 33
+
+    li      a0, 4
+    jal     ra, vga_write
+
+    li      a0, 5
+    jal     ra, vga_write
+
+    li      a0, 6
+    jal     ra, vga_write
+
+
+    # Barcos J2
+
+    li      a0, 14
+    jal     ra, vga_write
+
+    li      a0, 15
+    jal     ra, vga_write
+
+    li      a0, 16
+    jal     ra, vga_write
+
+
+    lw      ra, 0(sp)
+    addi    sp, sp, 4
+
+    jalr    x0, 0(ra)
+
+
+
+# ===========================================================================
+# HUD BATALLA
+#
+# s10 = barcos de J2 hundidos por J1
+# s11 = barcos de J1 hundidos por J2
+# ===========================================================================
+
+render_hud_battle:
+
+    addi    sp, sp, -4
+    sw      ra, 0(sp)
+
+
+    # NOMBRES BLANCOS
+
+    li      a0, 1
+    li      a1, 11
+    jal     ra, vga_write
+
+    li      a0, 2
+    li      a1, 19
+    jal     ra, vga_write
+
+
+    li      a0, 11
+    li      a1, 11
+    jal     ra, vga_write
+
+    li      a0, 12
+    li      a1, 27
+    jal     ra, vga_write
+
+
+    # Limpiar los iconos anteriores
+
+    li      a1, 0
+
+    li      a0, 4
+    jal     ra, vga_write
+
+    li      a0, 5
+    jal     ra, vga_write
+
+    li      a0, 6
+    jal     ra, vga_write
+
+
+    li      a0, 14
+    jal     ra, vga_write
+
+    li      a0, 15
+    jal     ra, vga_write
+
+    li      a0, 16
+    jal     ra, vga_write
+
+
+    # =======================================================
+    # BARCOS RESTANTES J1
+    # s11 = barcos de J1 hundidos
+    # =======================================================
+
+    li      t5, 3
+    beq     s11, t5, hud_j2_remaining
+
+
+    # Uno o mas vivos
+
+    li      a0, 4
+    li      a1, 33
+    jal     ra, vga_write
+
+
+    li      t5, 2
+    beq     s11, t5, hud_j2_remaining
+
+
+    # Dos o mas vivos
+
+    li      a0, 5
+    li      a1, 33
+    jal     ra, vga_write
+
+
+    li      t5, 1
+    beq     s11, t5, hud_j2_remaining
+
+
+    # Los tres vivos
+
+    li      a0, 6
+    li      a1, 33
+    jal     ra, vga_write
+
+
+
+hud_j2_remaining:
+
+    # =======================================================
+    # BARCOS RESTANTES J2
+    # s10 = barcos de J2 hundidos
+    # =======================================================
+
+    li      t5, 3
+    beq     s10, t5, hud_battle_done
+
+
+    li      a0, 14
+    li      a1, 33
+    jal     ra, vga_write
+
+
+    li      t5, 2
+    beq     s10, t5, hud_battle_done
+
+
+    li      a0, 15
+    li      a1, 33
+    jal     ra, vga_write
+
+
+    li      t5, 1
+    beq     s10, t5, hud_battle_done
+
+
+    li      a0, 16
+    li      a1, 33
+    jal     ra, vga_write
+
+
+
+hud_battle_done:
+
+    lw      ra, 0(sp)
+    addi    sp, sp, 4
 
     jalr    x0, 0(ra)
 
@@ -2225,144 +2287,107 @@ vga_write:
 # VGA GAME OVER
 #
 # a0:
-#   0 = gana J1
-#   1 = gana J2
+# 0 = gana J1
+# 1 = gana J2
 #
-# Dibuja "J1" o "J2" en grande usando tiles verdes.
+# Ganador  -> negro
+# Perdedor -> rojo
+#
+# Los tableros y barcos restantes permanecen visibles.
 # ===========================================================================
 
 render_game_over:
 
     addi    sp, sp, -8
+
     sw      ra, 4(sp)
     sw      s8, 0(sp)
 
     mv      s8, a0
 
-    jal     ra, clear_vga
+
+    # Mantener estado final
+
+    jal     ra, render_boards
+    jal     ra, render_hud_battle
 
 
-    # Color verde / HUD
-    li      a1, 4
+    # J1 ganador?
+
+    beq     s8, x0, game_over_j1_winner
 
 
-    # -------------------------------------------------------
-    # Letra J, filas 5..9, columnas 5..7
-    # Patron:
-    #   ###
-    #     #
-    #     #
-    #   # #
-    #   ###
-    # -------------------------------------------------------
 
-    li      a0, 105
-    jal     ra, vga_write
-    li      a0, 106
-    jal     ra, vga_write
-    li      a0, 107
+# ===========================================================================
+# J2 GANA
+# ===========================================================================
+
+game_over_j2_winner:
+
+    # J1 ROJO
+
+    li      a0, 1
+    li      a1, 10
     jal     ra, vga_write
 
-    li      a0, 127
-    jal     ra, vga_write
-
-    li      a0, 147
-    jal     ra, vga_write
-
-    li      a0, 165
-    jal     ra, vga_write
-    li      a0, 167
-    jal     ra, vga_write
-
-    li      a0, 185
-    jal     ra, vga_write
-    li      a0, 186
-    jal     ra, vga_write
-    li      a0, 187
+    li      a0, 2
+    li      a1, 18
     jal     ra, vga_write
 
 
-    # Ganador J1 o J2
-    beq     s8, x0, render_game_over_j1
+    # J2 NEGRO
 
-
-render_game_over_j2:
-
-    # Digito 2, filas 5..9, columnas 11..13
-    #   ###
-    #     #
-    #   ###
-    #   #
-    #   ###
-
-    li      a0, 111
-    jal     ra, vga_write
-    li      a0, 112
-    jal     ra, vga_write
-    li      a0, 113
+    li      a0, 11
+    li      a1, 15
     jal     ra, vga_write
 
-    li      a0, 133
-    jal     ra, vga_write
-
-    li      a0, 151
-    jal     ra, vga_write
-    li      a0, 152
-    jal     ra, vga_write
-    li      a0, 153
-    jal     ra, vga_write
-
-    li      a0, 171
-    jal     ra, vga_write
-
-    li      a0, 191
-    jal     ra, vga_write
-    li      a0, 192
-    jal     ra, vga_write
-    li      a0, 193
-    jal     ra, vga_write
-
-    jal     x0, render_game_over_done
-
-
-render_game_over_j1:
-
-    # Digito 1, filas 5..9, columnas 11..13
-    #    #
-    #   ##
-    #    #
-    #    #
-    #   ###
-
-    li      a0, 112
-    jal     ra, vga_write
-
-    li      a0, 131
-    jal     ra, vga_write
-    li      a0, 132
-    jal     ra, vga_write
-
-    li      a0, 152
-    jal     ra, vga_write
-
-    li      a0, 172
-    jal     ra, vga_write
-
-    li      a0, 191
-    jal     ra, vga_write
-    li      a0, 192
-    jal     ra, vga_write
-    li      a0, 193
+    li      a0, 12
+    li      a1, 31
     jal     ra, vga_write
 
 
-render_game_over_done:
+    jal     x0, game_over_done
+
+
+
+# ===========================================================================
+# J1 GANA
+# ===========================================================================
+
+game_over_j1_winner:
+
+    # J1 NEGRO
+
+    li      a0, 1
+    li      a1, 15
+    jal     ra, vga_write
+
+    li      a0, 2
+    li      a1, 23
+    jal     ra, vga_write
+
+
+    # J2 ROJO
+
+    li      a0, 11
+    li      a1, 10
+    jal     ra, vga_write
+
+    li      a0, 12
+    li      a1, 26
+    jal     ra, vga_write
+
+
+
+game_over_done:
 
     lw      s8, 0(sp)
     lw      ra, 4(sp)
+
     addi    sp, sp, 8
 
     jalr    x0, 0(ra)
+
 
 
 # ===========================================================================
@@ -2390,10 +2415,6 @@ uart_tx_wait:
 
 # ===========================================================================
 # UART SEND FRAME
-#
-# a0 CMD
-# a1 payload
-# a2 len
 # ===========================================================================
 
 uart_send_frame:
@@ -2460,9 +2481,6 @@ send_payload_loop:
     xor     s11, s11, a0
 
 
-    # uart_send_byte puede usar temporales.
-    # Preservamos indice.
-
     mv      s8, t2
 
 
@@ -2481,21 +2499,15 @@ send_payload_loop:
 
 send_payload_done:
 
-    # Checksum
-
     mv      a0, s11
 
     jal     ra, uart_send_byte
 
 
-    # ETX
-
     li      a0, ETX
 
     jal     ra, uart_send_byte
 
-
-    # Restore
 
     lw      s11, 16(sp)
 
@@ -2542,13 +2554,6 @@ uart_rx_wait:
 
 # ===========================================================================
 # UART RECEIVE FRAME
-#
-# Usado durante batalla.
-#
-# return:
-# a0 CMD
-# a1 LEN
-# payload -> FRAME_BUF
 # ===========================================================================
 
 uart_recv_frame:
@@ -2578,21 +2583,15 @@ recv_stx:
     bne     a0, t0, recv_stx
 
 
-    # CMD
-
     jal     ra, uart_get_byte
 
     mv      s8, a0
 
 
-    # LEN
-
     jal     ra, uart_get_byte
 
     mv      s9, a0
 
-
-    # max 32
 
     li      t3, 32
 
@@ -2749,8 +2748,6 @@ send_incoming:
 
 # ===========================================================================
 # BOTONES
-#
-# BTN_RST se maneja por reset de hardware en soc_top.
 # ===========================================================================
 
 read_buttons:
@@ -2801,11 +2798,6 @@ display_write:
 
 # ===========================================================================
 # SCORE DISPLAY
-#
-# s6 J1 wins
-# s7 J2 wins
-#
-# [J1 tens][J1 units][J2 tens][J2 units]
 # ===========================================================================
 
 update_score_display:
@@ -2908,7 +2900,7 @@ buzzer_write:
 
 finish_game:
 
-    # Guardar winner antes de usar a0
+    # Guardar winner
 
     li      t0, FRAME_BUF
 
@@ -2975,7 +2967,7 @@ winner_common:
     jal     ra, led_write
 
 
-    # Buzzer victory
+    # Buzzer victoria
 
     li      a0, 5
 
@@ -2987,10 +2979,12 @@ winner_common:
     jal     ra, update_score_display
 
 
-    # VGA: mostrar ganador
+    # VGA ganador
 
     li      t0, FRAME_BUF
+
     lbu     a0, 0(t0)
+
     jal     ra, render_game_over
 
 
@@ -3007,26 +3001,18 @@ winner_common:
     li      t2, FRAME_BUF
 
 
-    # MSB shots
-
     srli    t1, s5, 8
 
     sb      t1, 1(t2)
 
-
-    # LSB shots
 
     andi    t1, s5, 0xff
 
     sb      t1, 2(t2)
 
 
-    # sunk J1
-
     sb      s10, 3(t2)
 
-
-    # sunk J2
 
     sb      s11, 4(t2)
 
