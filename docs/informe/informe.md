@@ -147,7 +147,7 @@ Para la aplicación de este periférico se genero un modulo de sincronismos `vga
 
 (corregir) 
 #### Protocolo UART y aplicación PC
-##### UARTH
+##### UART
 
 La UART (Universal Asynchronous Receiver/Transmitter) es un enlace serial asíncrono sin línea de reloj compartida. Cada byte se encapsula en una trama 8N1: 1 bit de inicio (nivel bajo), 8 bits de datos enviados LSB primero, ningún bit de paridad y 1 bit de parada (nivel alto). La línea en reposo permanece en alto.
 
@@ -157,6 +157,10 @@ Además, rx es una entrada asíncrona al dominio de reloj de 100 MHz, por lo que
 
 En este proyecto la UART es el único canal del Jugador 2 con la partida, a 115200 baudios (requisito de la sección 4.5.3 del enunciado). Se reutiliza el diseño del Proyecto 2 con la interfaz de registros solicitada.
 
+<p align="center">
+  <b>Tabla #. Módulos de UART. </b> 
+</p>
+<div align="center"> 
 
 | Módulo	| Función |
 | :--- | :--- |
@@ -164,6 +168,8 @@ En este proyecto la UART es el único canal del Jugador 2 con la partida, a 1152
 |uart_rx |	Receptor: sincronizador de 2 FF + FSM de 4 estados + registro de desplazamiento. |
 |uart_tx | Transmisor: FSM de 4 estados + registro de desplazamiento. |
 |uart_top |	Envoltura con interfaz estándar de periféricos, banderas de estado y mapeo en memoria. |
+
+</div>
 
 Generador de baudios:
 
@@ -175,10 +181,12 @@ Un contador de $clog2(54) = 6 bits cuenta de 0 a DIVISOR-1 = 53 y emite s_tick d
 
 El truncamiento a entero introduce un error de 0,47 %, muy inferior a la tolerancia típica de una UART 8N1 (≈ ±3 a ±5 % acumulado en la trama), por lo que no se requiere un divisor fraccionario. La comunicación con pyserial a 115200 es compatible.
 
-Diagrama de estados receceptor:
-
+<p align="center">
 <img width="491" height="451" alt="fsm_receptor" src="https://github.com/user-attachments/assets/5db07a30-931b-4e23-87f5-145742e62fc7" />
-
+</p>
+<p align="center">
+  <b>Figura #. Diagrama de estados receceptor. </b> 
+</p>
 
 Sincronización: rx_sync_0 → rx_sync (dos FF, inicializados en 1 para que el reset equivalga a línea en reposo).
 
@@ -192,10 +200,12 @@ STOP: espera 16 ticks más y emite rx_done_tick durante un ciclo. Los datos qued
 
 Todos los puntos de muestreo caen a 8 + 16·k ticks del flanco detectado, es decir, en el centro de cada bit con una incertidumbre de ±1 tick (±1/16 de bit) por la asincronía entre el flanco y s_tick.
 
-Diagrama de estados transmisor:
-
+<p align="center">
 <img width="358" height="278" alt="fsm_transmisor" src="https://github.com/user-attachments/assets/ca1636fa-58b1-4787-8114-3cbf65c93238" />
-
+</p>
+<p align="center">
+  <b>Figura #. Diagrama de estados transmisor. </b> 
+</p>
 
 La salida tx proviene de un registro (tx_reg), lo que evita glitches en el pin físico.
 
@@ -208,11 +218,18 @@ Interfaz con el CPU y mapa de registros:
 
 Interfaz estándar de periféricos: clk_i, rst_i, write_enable_i, addr_i[1:0], wdata_i[31:0], rdata_o[31:0]. Los pines físicos son rx_pin y tx_pin.
 
+<p align="center">
+  <b>Tabla #. n. </b> 
+</p>
+<div align="center"> 
+
 | Módulo	| offset | Direccion | addr_i | Acceso | Lectura| 
 | :--- | :--- | :--- | :--- |  :--- | :--- |
 |Control/Estado |	0x00 |	0x0001_0040	| 00 |	Lectura | bit 0 = tx_busy, bit 1 = rx_valid, resto 0|
 |Datos TX |	0x04|	0x0001_0044	| 01	| Escritura	| bits [7:0] = byte a transmitir (lectura devuelve 0)|
 |Datos RX |	0x08|	0x0001_0048 |	10	| Lectura	| bits [7:0] = último byte recibido|
+
+</div>
 
 Decisiones de diseño y justificación:
 
@@ -266,6 +283,11 @@ En el proyecto, los displays muestran el contador acumulado de partidas ganadas 
 Mapa registros:
 Un único registro de datos en 0x0001_0130 (addr_i = 00). Lecturas a otras direcciones internas devuelven 0.
 
+<p align="center">
+  <b>Tabla #. . </b> 
+</p>
+<div align="center"> 
+
 | Bits	| Contenido (BCD)	| Dígito físico (Basys 3, an)|
 | :--- | :--- | :--- | 
 |[3:0]	| Decenas Jugador 1 |	AN0 (an = 1110, derecha)|
@@ -274,11 +296,18 @@ Un único registro de datos en 0x0001_0130 (addr_i = 00). Lecturas a otras direc
 |[15:12]	| Unidades Jugador | 2	AN3 (an = 0111, izquierda)|
 |[31:16]	| Sin uso (se ignora)|   --- |
 
+</div>
+
 Cada nibble acepta BCD 0–9; cualquier otro valor apaga todos los segmentos (dígito en blanco).
 
 Multiplexación:
 
 El contador de refresco de 16 bits se carga con 0xFFFF y decrementa hasta 0; al llegar a 0 incrementa digit_sel (2 bits, módulo 4) y se recarga.
+
+<p align="center">
+  <b>Tabla #. . </b> 
+</p>
+<div align="center"> 
 
 |Magnitud|	Valor|
 | :--- | :--- |
@@ -287,10 +316,15 @@ El contador de refresco de 16 bits se carga con 0xFFFF y decrementa hasta 0; al 
 |Frecuencia de cambio de dígito	|100 MHz / 65 536 ≈ 1,526 kHz|
 |Frecuencia de refresco por dígito	|≈ 1,526 kHz / 4 ≈ 381 Hz|
 
+</div>
+
 381 Hz está muy por encima del umbral de parpadeo perceptible y es lo bastante baja para que el brillo sea uniforme y el tiempo de apagado de los segmentos no cause ghosting notable. Un decodificador combinacional elige digit_value y an en función de digit_sel.
 
-Decodificador BCD a 7 segmentos (activo en bajo)
-
+<p align="center">
+  <b>Tabla #. Decodificador BCD a 7 segmentos (activo en bajo). </b> 
+</p>
+<div align="center"> 
+  
 |Dígito	|seg[6:0] = gfedcba|
 | :--- | :--- |
 |0	| 1000000|
@@ -303,6 +337,8 @@ Decodificador BCD a 7 segmentos (activo en bajo)
 |7	| 1111000|
 |8	| 0000000|
 |9	| 0010000|
+
+</div>
 
 El punto decimal permanece apagado (dp = 1). Todas las asignaciones tienen un default y valores por defecto en la lógica combinacional, por lo que no se infieren latches.
 
@@ -324,6 +360,10 @@ El periférico buzzer implementa la generación de retroalimentación sonora dis
 
 El CPU escribe en el registro de control un código de evento de 3 bits (wdata_i[2:0]) para disparar la señal sonora correspondiente. La siguiente Tabla documenta la codificación.
 
+<p align="center">
+  <b>Tabla #. Código de evento para el buzzer. </b> 
+</p>
+<div align="center"> 
 
 |wdata_i[2:0]	|Evento	|Frecuencia	|Duración|
 | :--- | :--- | :--- | :--- |
@@ -333,6 +373,8 @@ El CPU escribe en el registro de control un código de evento de 3 bits (wdata_i
 |3'd4	|Colocación inválida	| 150 Hz|	200 ms|
 |3'd5	|Victoria	|900 Hz|	800 ms|
 |3'd0, 3'd6, 3'd7	|Sin evento|	—|	—|
+
+</p>
 
 La lectura del registro (write_enable_i = 0) devuelve {29'b0, evento}, es decir, el último código de evento escrito. Esto permite al software verificar el estado del periférico si fuera necesario, aunque en la operación normal del juego el CPU solo escribe.
 
