@@ -10,6 +10,7 @@ Proyecto: Batalla Naval: juego de dos jugadores sobre un microprocesador RISC-V 
 Plataforma FPGA: Digilent Basys 3
 
 ### Resumen 
+
 ### Introducción 
 El objetivo de este proyecto es la implementación del juego batalla naval ("Battleship") integrando elementos como un microprocesador basado en la arquitectura RISC-V, lógica del juego en lenguaje ensamblador, periféricos mapeados a memoria y la generación de video con VGA. El batalla naval puede ser jugado por dos jugadores a la vez, donde de el jugador 1 interactúa por medio de la FPGA, utilizando los botones locales para colocar barcos y disparar, mientras observa el transcurso de la partida desde el monitor VGA, por otro lado, el jugador 2 interactúa con el juego por medio de una aplicación de PC (Python) que se comunica con la FPGA mediante protocolo UART.   
 
@@ -18,6 +19,29 @@ Para este proyecto la lógica del juego reside únicamente en el programa escrit
 
 #### Juego en ensamblador 
 #### Microprocesador 
+En este proyecto se hará uso de un microprocesador basado en las instrucciones rv32i de RISC-V uniciclo, lo que significa que se ejecutara una sola instrucción por ciclo. Este sistema permite realizar las operaciones requeridas por la lógica del juego, como la suma o lectura de registros. En esta sección se explica la función de cada parte que lo compone, para el desarrollo de cada modulo se uso como base el código, conocimientos y bibliografía de cursos pasados pasados. En la tabla # se muestran las instrucciones soportadas por el microprocesador.
+
+<p align="center">
+  <b>Tabla 1. Instrucciones soportadas por el microprocesador. </b> 
+</p>
+<div align="center">
+  
+| Instrucciones                         | Estado actual                                                                                                                         |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `add`, `sub`, `and`, `or`, `xor`      | Implementadas en la ALU y decodificadas.                                                                                              |
+| `slt`, `sll`, `srl`, `sra`            | Implementadas en la ALU y decodificadas.                                                                                              |
+| `addi`, `andi`, `ori`, `xori`, `slti` | Implementadas y decodificadas.                                                                                                        |
+| `slli`, `srli`, `srai`                | Implementadas y decodificadas.                                                                                                        |
+| `beq`, `bne`, `blt`, `bge`            | Contempladas en la unidad de control.                                                                                                 |
+| `jal`                                 | Contemplada en la unidad de control y el `datapath`.                                                                                  |
+| `lb`, `lh`, `lw`, `lbu`, `lhu`        | Contempladas por la memoria de datos; falta completar la conexión de `funct3` en el `datapath`.                                       |
+| `sb`, `sh`, `sw`                      | Contempladas por la memoria de datos; falta completar la conexión de `funct3` en el `datapath`.                                       |
+| `jalr`                                | El `datapath` y `PCSrc` contemplan el salto, pero falta completar su decodificación en `main_decoder`.                                |
+| `lui`                                 | El generador de inmediatos y la ALU contemplan la operación, pero falta completar la decodificación correspondiente en `alu_decoder`. |
+| `sltu`, `sltiu`                       | La ALU contempla la comparación sin signo, pero falta completar su decodificación en `alu_decoder`.                                   |
+
+</div>
+
 #### ALU
 La unidad aritmética lógica en un procesador es la encargada de realizar operaciones aritméticas, lógicas o desplazamientos, esta tiene 3 entradas, 2 para cada operando de 32 bits (`SrcA` y `SrcB`) y una señal de control de 4 bits para indicar la operación (`ALUControl`), a partir de estas genera una señal de salida de 32 bits (`ALUResult`). Para evaluar condiciones de salto la ALU también genera las señales `less` y `zero`, estas son evaluados en la unidad de control. 
 
@@ -40,9 +64,18 @@ La estructura se realiza por medio de las señales `RegWrite` (de la unidad de c
 </p>
 
 ##### Generador de inmediatos
+El generador de inmediatos es el modulo que se encarga de generar un valor inmediato de 32 bits. En este caso el modulo se llama `Extend`, este recibe el instrucción de la que se saca el inmediato `Instr` y la señal `ImmSrc` que le dice al modulo como debe modificar y extender el inmediato, el resultado de la extensión se encuentra en su salida `ImmExt`. La figura # muestra la relación entre entradas y salidas en un diagrama simplificado:   
 
+<p align="center">
+  <b>Figura 2. Diagrama de generador de inmediatos </b> 
+</p>
+<p align="center">
+  <img src="../diseño/Imagenes/Extend.png" width="300">
+</p>
 
 ##### Comparador de branch
+Este modulo se encarga de comparar dos registros y determinar si se debe realizar un salto o no, si se determina que debe realizarse un salto, se carga la nueva dirección de salto en el contador de programa `PCTarget`, de lo contrario este continua aumentando la cuenta secuencialmente. En este microprocesador, las funciones de comprador de branch se reparten entre los módulos de ALU y la unidad de control, en lugar de un modulo propio. 
+ALU genera las señales `less` y `zero` a partir de sus entradas, `zero` en caso de que la operación de ALU tuviese resultado 0 y `less` si `SrcA < SrcB` realizando una comparación con signo, estas señales se envían a `control_unit` donde se determina el tipo de branch, de esta forma obteniendo el valor que determinara el siguiente valor del PC `PCSrc`.
 
 ##### Contador de programa
 Este modulo recibe la dirección de la instrucción y la mantiene durante el periodo, una vez se completa la instrucción el contador aumenta cuatro. El modulo mantiene la dirección de 32 bits llamada `PC` en el código y la actualiza en cada flanco de reloj `clk`, el valor nuevo que se almacenara tiene por nombre `PCnext` y es generado por el mux del datapath `u_pcmux`. En la siguiente figura se presenta la relación de estas señales con el contador:
@@ -56,15 +89,39 @@ Este modulo recibe la dirección de la instrucción y la mantiene durante el per
 
 
 ##### Unidad de control
-Esta unidad se encarga de controlar el resto de módulos por medio de señales de control basadas en la instrucción actual recibida del datapath, a partir de esto guía el comportamiento del mismo. 
+Esta unidad se encarga de controlar el resto de módulos por medio de señales de control basadas en una instrucción que recibe del datapath y luego usa para determinar su como debe implementarse la misma. En este microprocesador, la unidad de control recibe el código de operación de la instrucción, los campos adicionales que diferencian ciertas operaciones e instrucciones y los valores de `less` y `zero` descritos en la sección de "comparador de branch". 
 
+#### ROM
+Este modulo es la memoria de instrucciones del procesador `instr_mem` recibe una dirección que apunta a una dirección en la memoria de instrucciones llamada `A` y devuelve la instrucción que almacena en la salida `RD`, ambas de 32 bits.
+
+<p align="center">
+  <img src="../diseño/Imagenes/ROM.png" width="300">
+</p>
+
+<p align="center">
+  <b>Figura 2. Memoria de instrucciones ROM </b> 
+</p>
+
+#### RAM
+La memoria de datos RAM se encarga de almacenar los valores que se requiere que perduren en el procesador. En el modulo `data_mem` se implementa una memoria de 256 que se mantiene en el `datapath`, por otro lado, en el `soc_top` se implementa la memoria mapeada en el bus de datos `soc_data_ram` con 1024 palabras de 32 bits a partir de la dirección base `0x00002000`.
+
+<p align="center">
+  <img src="../diseño/Imagenes/RAM.png" width="300">
+</p>
+<p align="center">
+  <b>Figura 2. Memoria RAM. </b> 
+</p>
 
 #### Periférico: VGA
 VGA (Video Graphics Array) es un estándar de visualización en monitores analógicos con una resolución de 640x480@60Hz (resolución que se usara en este caso), que indica 640 pixeles de ancho y 480 pixeles de alto con una frecuencia de actualización de pantalla de 60Hz. La FPGA basys 3 sintetiza el controlador de la VGA, este se encarga de generar pulsos de sincronización verticales y horizontales que coordinen la presentación de video en la pantalla (sincronismos), también se encarga de acceder a la memoria de video y aplicar los datos conforme se va recorriendo cada pixel, actualizando la información de cada uno []. El controlador realiza la coordinación según el reloj la VGA de 25MHz, el cual también es generado por la FPGA.    
 
-Para la aplicación de este periférico se genero un modulo de sincronismos `vga_sync`, este en encarga de recorrer las direcciones de cada pixel, para la actualización en la pantalla los cambios que realice el CPU en la memoria de video, también es el modulo que genera las señales de sincronización horizontal y vertical `vsync` y `hsync`. Para la memoria de video se genero el modulo `tile_map_ram`, la cual es una memoria de doble puerto que recibe los datos del CPU desde el modulo `vga_periph` como escritura y para luego ser leídos por el modulo que renderiza los tiles `tile_renderer`. `tile_renderer` se encarga de generar las señales RGB a partir del la información de la memoria de video y de del pixel que se este recorriendo en un momento especifico. `vga_periph` funciona como una interfaz que recibe la información del CPU y envía la información de RGB, `hsync` y `vsync` a los pines del conector VGA. En la tabla 1 se muestra la información utilizada para la coordinación del video en `vga_sync`:
+Para la aplicación de este periférico se genero un modulo de sincronismos `vga_sync`, este en encarga de recorrer las direcciones de cada pixel, para la actualización en la pantalla los cambios que realice el CPU en la memoria de video, también es el modulo que genera las señales de sincronización horizontal y vertical `vsync` y `hsync`. Para la memoria de video se genero el modulo `tile_map_ram`, la cual es una memoria de doble puerto que recibe los datos del CPU desde el modulo `vga_periph` como escritura y para luego ser leídos por el modulo que renderiza los tiles `tile_renderer`. `tile_renderer` se encarga de generar las señales RGB a partir del la información de la memoria de video y de del pixel que se este recorriendo en un momento especifico. `vga_periph` funciona como una interfaz que recibe la información del CPU y envía la información de RGB, `hsync` y `vsync` a los pines del conector VGA. En la tabla 1 se muestra la información utilizada para la coordinación del video en `vga_sync` y en la figura # se muestra un diagrama que relaciona los modulos con sus entradas y salidas:
 
-Tabla 1. Tiempos y pixeles de VGA.
+<p align="center">
+  <b>Tabla 1. Tiempos y pixeles de VGA. </b> 
+</p>
+<div align="center">
+  
 | Description | Time | Pixels |
 | :--- | :--- | :--- |
 | Visible area (Horizontal) | 25.422 μs | 640 |
@@ -77,9 +134,20 @@ Tabla 1. Tiempos y pixeles de VGA.
 | Vertical Back Porch | 1.048 ms | 33 Lines |
 | Vertical Front Porch | 0.318 ms | 10 Lines |
 | Whole Vertical Line | 16.683 μs | 525 | 
+  
+</div>
 
+<p align="center">
+  <img src="../diseño/Imagenes/Diagrama VGA.png" width="600">
+</p>
+
+<p align="center">
+  <b>Figura 2. Interconexión de módulos en la VGA </b> 
+</p>
+
+(corregir) 
 #### Protocolo UART y aplicación PC
-##### UARTH
+##### UART
 
 La UART (Universal Asynchronous Receiver/Transmitter) es un enlace serial asíncrono sin línea de reloj compartida. Cada byte se encapsula en una trama 8N1: 1 bit de inicio (nivel bajo), 8 bits de datos enviados LSB primero, ningún bit de paridad y 1 bit de parada (nivel alto). La línea en reposo permanece en alto.
 
@@ -89,6 +157,10 @@ Además, rx es una entrada asíncrona al dominio de reloj de 100 MHz, por lo que
 
 En este proyecto la UART es el único canal del Jugador 2 con la partida, a 115200 baudios (requisito de la sección 4.5.3 del enunciado). Se reutiliza el diseño del Proyecto 2 con la interfaz de registros solicitada.
 
+<p align="center">
+  <b>Tabla #. Módulos de UART. </b> 
+</p>
+<div align="center"> 
 
 | Módulo	| Función |
 | :--- | :--- |
@@ -96,6 +168,8 @@ En este proyecto la UART es el único canal del Jugador 2 con la partida, a 1152
 |uart_rx |	Receptor: sincronizador de 2 FF + FSM de 4 estados + registro de desplazamiento. |
 |uart_tx | Transmisor: FSM de 4 estados + registro de desplazamiento. |
 |uart_top |	Envoltura con interfaz estándar de periféricos, banderas de estado y mapeo en memoria. |
+
+</div>
 
 Generador de baudios:
 
@@ -107,10 +181,12 @@ Un contador de $clog2(54) = 6 bits cuenta de 0 a DIVISOR-1 = 53 y emite s_tick d
 
 El truncamiento a entero introduce un error de 0,47 %, muy inferior a la tolerancia típica de una UART 8N1 (≈ ±3 a ±5 % acumulado en la trama), por lo que no se requiere un divisor fraccionario. La comunicación con pyserial a 115200 es compatible.
 
-Diagrama de estados receceptor:
-
+<p align="center">
 <img width="491" height="451" alt="fsm_receptor" src="https://github.com/user-attachments/assets/5db07a30-931b-4e23-87f5-145742e62fc7" />
-
+</p>
+<p align="center">
+  <b>Figura #. Diagrama de estados receceptor. </b> 
+</p>
 
 Sincronización: rx_sync_0 → rx_sync (dos FF, inicializados en 1 para que el reset equivalga a línea en reposo).
 
@@ -124,10 +200,12 @@ STOP: espera 16 ticks más y emite rx_done_tick durante un ciclo. Los datos qued
 
 Todos los puntos de muestreo caen a 8 + 16·k ticks del flanco detectado, es decir, en el centro de cada bit con una incertidumbre de ±1 tick (±1/16 de bit) por la asincronía entre el flanco y s_tick.
 
-Diagrama de estados transmisor:
-
+<p align="center">
 <img width="358" height="278" alt="fsm_transmisor" src="https://github.com/user-attachments/assets/ca1636fa-58b1-4787-8114-3cbf65c93238" />
-
+</p>
+<p align="center">
+  <b>Figura #. Diagrama de estados transmisor. </b> 
+</p>
 
 La salida tx proviene de un registro (tx_reg), lo que evita glitches en el pin físico.
 
@@ -140,11 +218,18 @@ Interfaz con el CPU y mapa de registros:
 
 Interfaz estándar de periféricos: clk_i, rst_i, write_enable_i, addr_i[1:0], wdata_i[31:0], rdata_o[31:0]. Los pines físicos son rx_pin y tx_pin.
 
+<p align="center">
+  <b>Tabla #. n. </b> 
+</p>
+<div align="center"> 
+
 | Módulo	| offset | Direccion | addr_i | Acceso | Lectura| 
 | :--- | :--- | :--- | :--- |  :--- | :--- |
 |Control/Estado |	0x00 |	0x0001_0040	| 00 |	Lectura | bit 0 = tx_busy, bit 1 = rx_valid, resto 0|
 |Datos TX |	0x04|	0x0001_0044	| 01	| Escritura	| bits [7:0] = byte a transmitir (lectura devuelve 0)|
 |Datos RX |	0x08|	0x0001_0048 |	10	| Lectura	| bits [7:0] = último byte recibido|
+
+</div>
 
 Decisiones de diseño y justificación:
 
@@ -198,6 +283,11 @@ En el proyecto, los displays muestran el contador acumulado de partidas ganadas 
 Mapa registros:
 Un único registro de datos en 0x0001_0130 (addr_i = 00). Lecturas a otras direcciones internas devuelven 0.
 
+<p align="center">
+  <b>Tabla #. . </b> 
+</p>
+<div align="center"> 
+
 | Bits	| Contenido (BCD)	| Dígito físico (Basys 3, an)|
 | :--- | :--- | :--- | 
 |[3:0]	| Decenas Jugador 1 |	AN0 (an = 1110, derecha)|
@@ -206,11 +296,18 @@ Un único registro de datos en 0x0001_0130 (addr_i = 00). Lecturas a otras direc
 |[15:12]	| Unidades Jugador | 2	AN3 (an = 0111, izquierda)|
 |[31:16]	| Sin uso (se ignora)|   --- |
 
+</div>
+
 Cada nibble acepta BCD 0–9; cualquier otro valor apaga todos los segmentos (dígito en blanco).
 
 Multiplexación:
 
 El contador de refresco de 16 bits se carga con 0xFFFF y decrementa hasta 0; al llegar a 0 incrementa digit_sel (2 bits, módulo 4) y se recarga.
+
+<p align="center">
+  <b>Tabla #. . </b> 
+</p>
+<div align="center"> 
 
 |Magnitud|	Valor|
 | :--- | :--- |
@@ -219,10 +316,15 @@ El contador de refresco de 16 bits se carga con 0xFFFF y decrementa hasta 0; al 
 |Frecuencia de cambio de dígito	|100 MHz / 65 536 ≈ 1,526 kHz|
 |Frecuencia de refresco por dígito	|≈ 1,526 kHz / 4 ≈ 381 Hz|
 
+</div>
+
 381 Hz está muy por encima del umbral de parpadeo perceptible y es lo bastante baja para que el brillo sea uniforme y el tiempo de apagado de los segmentos no cause ghosting notable. Un decodificador combinacional elige digit_value y an en función de digit_sel.
 
-Decodificador BCD a 7 segmentos (activo en bajo)
-
+<p align="center">
+  <b>Tabla #. Decodificador BCD a 7 segmentos (activo en bajo). </b> 
+</p>
+<div align="center"> 
+  
 |Dígito	|seg[6:0] = gfedcba|
 | :--- | :--- |
 |0	| 1000000|
@@ -235,6 +337,8 @@ Decodificador BCD a 7 segmentos (activo en bajo)
 |7	| 1111000|
 |8	| 0000000|
 |9	| 0010000|
+
+</div>
 
 El punto decimal permanece apagado (dp = 1). Todas las asignaciones tienen un default y valores por defecto en la lógica combinacional, por lo que no se infieren latches.
 
@@ -256,6 +360,10 @@ El periférico buzzer implementa la generación de retroalimentación sonora dis
 
 El CPU escribe en el registro de control un código de evento de 3 bits (wdata_i[2:0]) para disparar la señal sonora correspondiente. La siguiente Tabla documenta la codificación.
 
+<p align="center">
+  <b>Tabla #. Código de evento para el buzzer. </b> 
+</p>
+<div align="center"> 
 
 |wdata_i[2:0]	|Evento	|Frecuencia	|Duración|
 | :--- | :--- | :--- | :--- |
@@ -265,6 +373,8 @@ El CPU escribe en el registro de control un código de evento de 3 bits (wdata_i
 |3'd4	|Colocación inválida	| 150 Hz|	200 ms|
 |3'd5	|Victoria	|900 Hz|	800 ms|
 |3'd0, 3'd6, 3'd7	|Sin evento|	—|	—|
+
+</div>
 
 La lectura del registro (write_enable_i = 0) devuelve {29'b0, evento}, es decir, el último código de evento escrito. Esto permite al software verificar el estado del periférico si fuera necesario, aunque en la operación normal del juego el CPU solo escribe.
 
@@ -308,4 +418,4 @@ El módulo buzzer_perifico actúa como envoltorio del driver y realiza la decodi
 
 ### Conclusiones  
 
- 
+### Referencias  
