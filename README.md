@@ -22,7 +22,9 @@ Vivado deben verificarse por separado.
 - `modulos/src/uart/`: UART RX/TX, `uart_top` (instanciado por `soc_top`) y
   `uart_peripheral` (módulo alternativo, no instanciado por el SoC).
 - `modulos/src/top/`: top del SoC, RAM de datos y envoltura del reloj VGA.
-- `modulos/tb/`: bancos de prueba existentes.
+- `modulos/tb/`: bancos de prueba existentes; contiene modelos de simulación
+  para la BRAM de Vivado (`cpu/batalha_naval_mem_model.sv`) y el reloj VGA IP
+  (`top/clk_wiz_0_model.sv`).
 - `pc_app/vga_interactive.py`: consola de prueba del mapa de tiles VGA.
 - `pc_app/battleship_uart.py`: terminal serial del Jugador 2.
 - `pc_app/uart_protocol.py`: codec del protocolo de aplicación binario.
@@ -33,12 +35,13 @@ Vivado deben verificarse por separado.
 ## Estado de Vivado
 
 El top de integración es `soc_top`; `vga_top_dut_board` es un top independiente
-para la demostración VGA. El SoC instancia `clk_wiz_0` para generar el reloj
-VGA y `batalla_naval_mem` para la ROM. No se encontró en el repositorio un
-proyecto `.xpr` ni los archivos de configuración de esos IP; deben estar
-disponibles o regenerarse en Vivado para reproducir la síntesis. Consulte
-[`constraints/README.md`](constraints/README.md) para las restricciones y
-pendientes de cada top.
+para la demostración VGA. El SoC instancia `clk_wiz_0`: desde `clk_in1` de
+100 MHz genera `clk_fpga` de 100 MHz para el sistema y `clk_vga` de 25 MHz
+para VGA. También instancia `batalla_naval_mem` para la ROM. No se encontró en
+el repositorio un proyecto `.xpr` ni los archivos de configuración de esos IP;
+deben estar disponibles o regenerarse en Vivado para reproducir la síntesis.
+Consulte [`constraints/README.md`](constraints/README.md) para las
+restricciones y pendientes de cada top.
 
 ## Aplicación del Jugador 2
 

@@ -147,10 +147,228 @@ Para la aplicación de este periférico se genero un modulo de sincronismos `vga
 
 (corregir) 
 #### Protocolo UART y aplicación PC
+##### UARTH
+
+La UART (Universal Asynchronous Receiver/Transmitter) es un enlace serial asíncrono sin línea de reloj compartida. Cada byte se encapsula en una trama 8N1: 1 bit de inicio (nivel bajo), 8 bits de datos enviados LSB primero, ningún bit de paridad y 1 bit de parada (nivel alto). La línea en reposo permanece en alto.
+
+Como transmisor y receptor no comparten reloj, el receptor debe reconstruir la temporización a partir del flanco de bajada del bit de inicio. Para ello se usa sobremuestreo 16×: un generador produce un pulso s_tick a 16 veces la tasa de baudios, y el receptor cuenta ticks para ubicar el muestreo en el centro de cada bit, donde la señal es más estable y se maximiza la tolerancia a errores de frecuencia.
+
+Además, rx es una entrada asíncrona al dominio de reloj de 100 MHz, por lo que debe pasar por un sincronizador de dos flip-flops para reducir la probabilidad de metaestabilidad.
+
+En este proyecto la UART es el único canal del Jugador 2 con la partida, a 115200 baudios (requisito de la sección 4.5.3 del enunciado). Se reutiliza el diseño del Proyecto 2 con la interfaz de registros solicitada.
+
+
+| Módulo	| Función |
+| :--- | :--- |
+|uart_generador_baudios |	Divisor de frecuencia que genera s_tick a 16 × BAUD_RATE. |
+|uart_rx |	Receptor: sincronizador de 2 FF + FSM de 4 estados + registro de desplazamiento. |
+|uart_tx | Transmisor: FSM de 4 estados + registro de desplazamiento. |
+|uart_top |	Envoltura con interfaz estándar de periféricos, banderas de estado y mapeo en memoria. |
+
+Generador de baudios:
+
+Parámetros: SYS_CLK_FREQ = 100 MHz, BAUD_RATE = 115200, OVERSAMPLE = 16.
+
+$$\text{DIVISOR} = \left\lfloor \frac{100\,000\,000}{115\,200 \times 16} \right\rfloor = \lfloor 54{,}25 \rfloor = 54$$
+
+Un contador de $clog2(54) = 6 bits cuenta de 0 a DIVISOR-1 = 53 y emite s_tick durante un ciclo de reloj al llegar al final, reiniciándose a 0.
+
+El truncamiento a entero introduce un error de 0,47 %, muy inferior a la tolerancia típica de una UART 8N1 (≈ ±3 a ±5 % acumulado en la trama), por lo que no se requiere un divisor fraccionario. La comunicación con pyserial a 115200 es compatible.
+
+Diagrama de estados receceptor:
+
+<img width="491" height="451" alt="fsm_receptor" src="https://github.com/user-attachments/assets/5db07a30-931b-4e23-87f5-145742e62fc7" />
+
+
+Sincronización: rx_sync_0 → rx_sync (dos FF, inicializados en 1 para que el reset equivalga a línea en reposo).
+
+IDLE: espera el flanco de bajada (rx_sync = 0) y reinicia el contador de ticks.
+
+START: cuenta 8 ticks (SB_TICK/2) para posicionarse en el centro del bit de inicio. Esto sirve además de filtro de glitches de corta duración.
+
+DATA: cada 16 ticks (un bit completo, es decir, el centro del siguiente bit) desplaza rx_sync por el extremo MSB de b_reg (desplazamiento a la derecha, LSB llega primero). Tras 8 bits pasa a STOP.
+
+STOP: espera 16 ticks más y emite rx_done_tick durante un ciclo. Los datos quedan disponibles en dout.
+
+Todos los puntos de muestreo caen a 8 + 16·k ticks del flanco detectado, es decir, en el centro de cada bit con una incertidumbre de ±1 tick (±1/16 de bit) por la asincronía entre el flanco y s_tick.
+
+Diagrama de estados transmisor:
+
+<img width="358" height="278" alt="fsm_transmisor" src="https://github.com/user-attachments/assets/ca1636fa-58b1-4787-8114-3cbf65c93238" />
+
+
+La salida tx proviene de un registro (tx_reg), lo que evita glitches en el pin físico.
+
+El byte se captura en b_reg en el ciclo en que llega tx_start, por lo que wdata_i solo debe ser válido durante la escritura.
+
+tx_start se ignora si la FSM no está en IDLE; por eso el software debe consultar tx_busy antes de escribir.
+
+
+Interfaz con el CPU y mapa de registros:
+
+Interfaz estándar de periféricos: clk_i, rst_i, write_enable_i, addr_i[1:0], wdata_i[31:0], rdata_o[31:0]. Los pines físicos son rx_pin y tx_pin.
+
+| Módulo	| offset | Direccion | addr_i | Acceso | Lectura| 
+| :--- | :--- | :--- | :--- |  :--- | :--- |
+|Control/Estado |	0x00 |	0x0001_0040	| 00 |	Lectura | bit 0 = tx_busy, bit 1 = rx_valid, resto 0|
+|Datos TX |	0x04|	0x0001_0044	| 01	| Escritura	| bits [7:0] = byte a transmitir (lectura devuelve 0)|
+|Datos RX |	0x08|	0x0001_0048 |	10	| Lectura	| bits [7:0] = último byte recibido|
+
+Decisiones de diseño y justificación:
+
+Sobremuestreo 16×: permite muestrear en el centro del bit y tolerar el desajuste entre relojes; es la estructura clásica para UART en FPGA y reutiliza el diseño validado en el Proyecto 2.
+
+Sincronizador de 2 FF en rx: la señal proviene de otro dominio (PC); sin él puede haber metaestabilidad.
+
+FSM de dos procesos (registro + lógica combinacional) con valores por defecto: evita latches y facilita el análisis, tal como exige el enunciado.
+
+Limpieza de rx_valid por lectura: el software no necesita un acceso de escritura adicional para reconocer el dato, lo que simplifica el lazo de sondeo en ensamblador.
+
+Sondeo (polling) en lugar de interrupciones: el subconjunto rv32i requerido no incluye CSR ni manejo de interrupciones; el programa único y determinístico consulta las banderas.
+
+El periférico solo forma tramas a nivel de bit: no conoce el protocolo de aplicación ni las reglas del juego, cumpliendo la sección 4.1 del enunciado.
+
+Consideraciones de integración y limitaciones:
+
+Sin FIFO ni detección de sobreescritura: el periférico tiene un único registro de recepción. Un byte llega cada 86,4 µs como mínimo (≈ 8 640 ciclos); el programa debe sondear rx_valid con una frecuencia mayor y leer el byte antes de que llegue el siguiente. 
+
+Las tramas del protocolo de aplicación deben diseñarse con esto en mente (por ejemplo, respuestas de la FPGA cortas y fáciles de procesar).
+
+Sin bit de error de trama: uart_rx no valida el bit de parada. Cualquier byte inválido se descarta en la capa de aplicación (requisito de la sección 4.5.3).
+Efecto de lectura: como la limpieza de rx_valid ocurre ante cualquier ciclo de lectura con addr_i = 10, el decodificador de direcciones del top debe calificar el acceso con la selección de periférico (rango 0x0001_0040–0x0001_004F). De lo contrario, la lectura de otro periférico cuyo offset coincida en addr_i[1:0] (por ejemplo, el LED en 0x0001_0138) borraría la bandera sin que el CPU haya leído el dato.
+
+Reset: el diseño usa reset asíncrono en activo alto (posedge rst_i). Se recomienda que el top sincronice la liberación del reset al reloj del sistema.
+Condición de carrera en tx_busy: una escritura a Datos TX con la FSM en STOP justo en el ciclo de tx_done_tick dejaría tx_busy en 1 sin transmisión. No ocurre si el software respeta el sondeo de tx_busy antes de escribir.
+
+
+[insertar diagrama tercer nivel]
+[insertar diagrama cuarto nivel]
+
+##### Aplicacion Python
+
+Como parte de la arquitectura distribuida del sistema, se desarrolló una suite de software en lenguaje Python que actúa como la terminal de entrada/salida remota para el Jugador 2. Siguiendo estrictamente las especificaciones del proyecto, la lógica del juego, las validaciones definitivas de disparos/posiciones y la condición de victoria se ejecutan exclusivamente en el microprocesador RISC-V dentro de la FPGA. La aplicación en PC cumple el rol de terminal gráfica e interactiva en modo texto, facilitando la transmisión y recepción de datos a través de comunicación serial (UART a 115200 baudios, 8N1).
+
+Módulo del Protocolo UART:
+
+Este módulo define las constantes del protocolo de la capa de aplicación, la estructura de las tramas seriales y un analizador sintáctico (parser) orientado a flujos de bytes.
+
+[Desarrollar explicacion, diagrama de flujo]
+
 #### Periféricos
 ##### Displays
+
+Los displays de 7 segmentos de la tarjeta (ánodo común) comparten las líneas de segmentos entre los dígitos, y cada dígito se habilita con su propio ánodo. Para mostrar varios dígitos con pocos pines se emplea multiplexación temporal: en cada instante solo un dígito está encendido, y la persistencia de la visión da la ilusión de que todos permanecen activos si la tasa de refresco supera aproximadamente 60 Hz por dígito.
+
+Ánodos y segmentos son activos en bajo (an = 0 habilita el dígito; seg[i] = 0 enciende el segmento). El orden de seg es {g,f,e,d,c,b,a}.
+
+En el proyecto, los displays muestran el contador acumulado de partidas ganadas (00–99) de cada jugador desde el último reinicio general.
+
+Mapa registros:
+Un único registro de datos en 0x0001_0130 (addr_i = 00). Lecturas a otras direcciones internas devuelven 0.
+
+| Bits	| Contenido (BCD)	| Dígito físico (Basys 3, an)|
+| :--- | :--- | :--- | 
+|[3:0]	| Decenas Jugador 1 |	AN0 (an = 1110, derecha)|
+|[7:4]	| Unidades Jugador 1	| AN1 (an = 1101)|
+|[11:8]	| Decenas Jugador 2	| AN2 (an = 1011)|
+|[15:12]	| Unidades Jugador | 2	AN3 (an = 0111, izquierda)|
+|[31:16]	| Sin uso (se ignora)|   --- |
+
+Cada nibble acepta BCD 0–9; cualquier otro valor apaga todos los segmentos (dígito en blanco).
+
+Multiplexación:
+
+El contador de refresco de 16 bits se carga con 0xFFFF y decrementa hasta 0; al llegar a 0 incrementa digit_sel (2 bits, módulo 4) y se recarga.
+
+|Magnitud|	Valor|
+| :--- | :--- |
+|Ciclos por dígito	|65 536|
+|Tiempo por dígito	|655,36 µs|
+|Frecuencia de cambio de dígito	|100 MHz / 65 536 ≈ 1,526 kHz|
+|Frecuencia de refresco por dígito	|≈ 1,526 kHz / 4 ≈ 381 Hz|
+
+381 Hz está muy por encima del umbral de parpadeo perceptible y es lo bastante baja para que el brillo sea uniforme y el tiempo de apagado de los segmentos no cause ghosting notable. Un decodificador combinacional elige digit_value y an en función de digit_sel.
+
+Decodificador BCD a 7 segmentos (activo en bajo)
+
+|Dígito	|seg[6:0] = gfedcba|
+| :--- | :--- |
+|0	| 1000000|
+|1	| 1111001|
+|2	| 0100100|
+|3	| 0110000|
+|4	| 0011001|
+|5	| 0010010|
+|6	| 0000010|
+|7	| 1111000|
+|8	| 0000000|
+|9	| 0010000|
+
+El punto decimal permanece apagado (dp = 1). Todas las asignaciones tienen un default y valores por defecto en la lógica combinacional, por lo que no se infieren latches.
+
+[insertar diagrama tercer nivel]
+[insertar diagrama cuarto nivel]
+
 ##### Botones
+
+El periférico j1_input implementa la interfaz de lectura de las entradas físicas del Jugador 1 (botones de la tarjeta FPGA) siguiendo la interfaz estándar de periféricos de registros definida en la especificación del proyecto: clk_i, rst_i, write_enable_i, addr_i[1:0], wdata_i[31:0] y rdata_o[31:0]. El periférico expone un único registro de ESTADO en la dirección addr_i = 2'b00, correspondiente a la dirección mapeada 0x0001_0120 del mapa de memoria del sistema.
+
+Las entradas físicas se reciben por el puerto btns_in[6:0], que agrupa los siete botones requeridos por la especificación: navegación (arriba, abajo, izquierda, derecha), selección/rotación (BTN_SEL), confirmación (BTN_OK) y reinicio (BTN_RST). El mapeo exacto de bits 
+
+[insertar diagrama tercer nivel]
+[insertar diagrama cuarto nivel]
+
 ##### Buzzer 
+
+El periférico buzzer implementa la generación de retroalimentación sonora distintiva para los cinco eventos requeridos por la especificación: impacto, fallo, barco hundido, colocación inválida y victoria. Sigue la interfaz estándar de periféricos de registros y expone un único registro de CONTROL en addr_i = 2'b00, correspondiente a la dirección mapeada 0x0001_0140.
+
+El CPU escribe en el registro de control un código de evento de 3 bits (wdata_i[2:0]) para disparar la señal sonora correspondiente. La siguiente Tabla documenta la codificación.
+
+
+|wdata_i[2:0]	|Evento	|Frecuencia	|Duración|
+| :--- | :--- | :--- | :--- |
+|3'd1	|Impacto	|1200 Hz|	100 ms|
+|3'd2	|Fallo	|300 Hz|	120 ms|
+|3'd3|	Barco hundido|	600 Hz	|400 ms|
+|3'd4	|Colocación inválida	| 150 Hz|	200 ms|
+|3'd5	|Victoria	|900 Hz|	800 ms|
+|3'd0, 3'd6, 3'd7	|Sin evento|	—|	—|
+
+La lectura del registro (write_enable_i = 0) devuelve {29'b0, evento}, es decir, el último código de evento escrito. Esto permite al software verificar el estado del periférico si fuera necesario, aunque en la operación normal del juego el CPU solo escribe.
+
+Arquitectura del driver :
+
+El módulo buzzer_driver es el núcleo de generación de la señal PWM. Su funcionamiento se basa en un único contador de duración y un contador de semiperiodo, y en una máquina de estados implícita con dos estados: active = 0 (reposo) y active = 1 (generando tono).  todos los parámetros de frecuencia y duración son configurables mediante parameter integer, lo que permite ajustar los tonos sin modificar la lógica. Los valores por defecto se listan en la Tabla. a partir de CLK_FREQ_HZ y las frecuencias objetivo se calculan los semiperiodos en ciclos de reloj:
+
+$$\text{HALF} = \left\lfloor \frac{CLK}{2f} \right\rfloor $$
+
+$$\text{DIVISOR} = \left\lfloor \frac{CLK * MS}{1000} \right\rfloor $$
+
+Se utiliza la función max5 para determinar el máximo semiperiodo y la máxima duración entre los cinco eventos, y a partir de ellos se dimensionan los anchos de bits HALF_WIDTH y DUR_WIDTH con $clog2. Esto garantiza que los contadores tengan el tamaño justo para el peor caso, optimizando el uso de recursos
+
+Logica secuencial:
+
+el bloque always_ff @(posedge clk) implementa la prioridad de eventos y la generación del tono:
+
+Reset: todos los registros a cero y buzzer_pwm = 0.
+
+Detección de pulsos: si alguno de los *_pulse está activo, se carga el semiperiodo y la duración correspondientes, se reinicia el contador de toggle, se activa active y se pone buzzer_pwm = 0. La prioridad es impacto > fallo > hundido > inválido > victoria, aunque en la operación normal del juego los eventos son mutuamente excluyentes en un mismo ciclo.
+
+Generación del tono: mientras active = 1, el contador de duración decrementa en cada ciclo. El contador de toggle incrementa hasta half_period - 1, momento en el cual se reinicia y se conmuta buzzer_pwm. Cuando duration_cnt llega a cero, active se desactiva y buzzer_pwm vuelve a cero.
+
+De esta forma, la señal buzzer_pwm es una onda cuadrada de frecuencia 
+
+$$\text{HALF} = \left\lfloor \frac{CLK}{2f} \right\rfloor $$
+
+que se mantiene activa durante DUR ciclos. La frecuencia y la duración son independientes para cada evento, lo que permite distinguirlos auditivamente.
+
+Decodificación de eventos:
+El módulo buzzer_perifico actúa como envoltorio del driver y realiza la decodificación del código de evento. Los pulsos son de un solo ciclo de reloj, ya que write_strobe solo es válido durante el ciclo en que el CPU ejecuta la escritura. Esto es suficiente porque el driver captura el pulso y genera el tono completo de forma autónoma..
+
+
+
+[insertar diagrama tercer nivel]
+[insertar diagrama cuarto nivel]
 
 ### Presentación de Resultados 
 

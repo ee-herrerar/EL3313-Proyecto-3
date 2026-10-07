@@ -20,9 +20,10 @@ module soc_top (
     output logic [3:0]  vgaBlue
 );
 
+    logic clk_fpga;
     logic clk_vga;
-    logic vga_clock_locked;
-    logic vga_reset;
+    logic clock_locked;
+    logic system_reset;
     logic [6:0] btns;
     logic [31:0] prog_address;
     logic [31:0] prog_instr;
@@ -54,9 +55,9 @@ module soc_top (
     logic [1:0] led_addr;
     logic [1:0] buzzer_addr;
 
-    // bit 6 is BTN_RST (btnC); bits 5:2 are directions, 1 is SEL, 0 is OK.
-    assign btns = {btnC, btnU, btnD, btnL, btnR, sw};
-    assign vga_reset = btnC || !vga_clock_locked;
+    // GPIO bits [6:0] = reset, up, down, left, right, rotate, confirm.
+    assign btns = {btnC, btnU, btnD, btnL, btnR, sw[1], sw[0]};
+    assign system_reset = btnC || !clock_locked;
 
     soc_interconnect u_interconnect (
         .address_i              (data_address),
@@ -83,22 +84,22 @@ module soc_top (
         .buzzer_addr_o          (buzzer_addr)
     );
 
-    vga_clock_gen u_vga_clock (
-        .clk100_i (clk100mhz),
-        .rst_i    (btnC),
-        .clk25_o  (clk_vga),
-        .locked_o (vga_clock_locked)
+    vga_clock_gen u_clock_gen (
+        .clk100_i   (clk100mhz),
+        .rst_i      (btnC),
+        .clk_fpga_o (clk_fpga),
+        .clk_vga_o  (clk_vga),
+        .locked_o   (clock_locked)
     );
 
     instr_mem u_program_rom (
-        .clk (clk100mhz),
         .A  (prog_address),
         .RD (prog_instr)
     );
 
     cpu u_cpu (
-        .clk                (clk100mhz),
-        .rst                (btnC),
+        .clk                (clk_fpga),
+        .rst                (system_reset),
         .ProgInstr_i        (prog_instr),
         .ProgAddress_o      (prog_address),
         .DataIn_i           (data_read),
@@ -109,7 +110,7 @@ module soc_top (
     );
 
     soc_data_ram u_data_ram (
-        .clk_i          (clk100mhz),
+        .clk_i          (clk_fpga),
         .write_enable_i (ram_write_enable),
         .address_i      (data_address),
         .write_data_i   (data_write),
@@ -118,8 +119,8 @@ module soc_top (
     );
 
     j1_input u_gpio (
-        .clk_i          (clk100mhz),
-        .rst_i          (btnC),
+        .clk_i          (clk_fpga),
+        .rst_i          (system_reset),
         .write_enable_i (gpio_write_enable),
         .addr_i         (gpio_addr),
         .wdata_i        (data_write),
@@ -128,8 +129,8 @@ module soc_top (
     );
 
     led_perifico u_led (
-        .clk_i          (clk100mhz),
-        .rst_i          (btnC),
+        .clk_i          (clk_fpga),
+        .rst_i          (system_reset),
         .write_enable_i (led_write_enable),
         .addr_i         (led_addr),
         .wdata_i        (data_write),
@@ -138,8 +139,8 @@ module soc_top (
     );
 
     display_7seg u_display (
-        .clk_i          (clk100mhz),
-        .rst_i          (btnC),
+        .clk_i          (clk_fpga),
+        .rst_i          (system_reset),
         .write_enable_i (display_write_enable),
         .addr_i         (display_addr),
         .wdata_i        (data_write),
@@ -150,8 +151,8 @@ module soc_top (
     );
 
     buzzer_perifico u_buzzer (
-        .clk_i          (clk100mhz),
-        .rst_i          (btnC),
+        .clk_i          (clk_fpga),
+        .rst_i          (system_reset),
         .write_enable_i (buzzer_write_enable),
         .addr_i         (buzzer_addr),
         .wdata_i        (data_write),
@@ -160,8 +161,8 @@ module soc_top (
     );
 
     uart_top u_uart (
-        .clk_i          (clk100mhz),
-        .rst_i          (btnC),
+        .clk_i          (clk_fpga),
+        .rst_i          (system_reset),
         .write_enable_i (uart_write_enable),
         .addr_i         (uart_addr),
         .wdata_i        (data_write),
@@ -171,8 +172,8 @@ module soc_top (
     );
 
     vga_periph u_vga (
-        .clk_cpu_i      (clk100mhz),
-        .rst_i          (vga_reset),
+        .clk_cpu_i      (clk_fpga),
+        .rst_i          (system_reset),
         .write_enable_i (vga_write_enable),
         .addr_i         (data_address),
         .wdata_i        (data_write),

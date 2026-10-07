@@ -14,25 +14,31 @@ alternativa sin instancia en esta jerarquía. La demo VGA usa un top y puertos
 distintos, por lo que no se debe combinar su XDC con `ConstraintsTop.xdc`.
 
 La interfaz de juego se asigna a los cinco pulsadores y dos switches de la
-Basys 3. `btnC` actúa como reset general; `btnU`, `btnD`, `btnL` y `btnR` son
-las direcciones; `sw[1]` selecciona/rota y `sw[0]` confirma. Los switches son
-entradas mantenidas, por lo que el jugador debe devolverlos a cero para
-generar una nueva pulsación. El XDC asigna el buzzer a JA1 y la UART al puente
-USB-UART integrado.
+Basys 3. `btnC` actúa como reset general y GPIO bit 6; `btnU`, `btnD`, `btnL` y
+`btnR` son las direcciones (arriba bit 5, abajo bit 4, izquierda bit 3,
+derecha bit 2); `sw[1]` rota (bit 1) y `sw[0]` confirma (bit 0). La
+correspondencia coincide con las máscaras del firmware ensamblador y está
+implementada en `soc_top`. Los switches son entradas mantenidas, por lo que el
+jugador debe devolverlos a cero para generar una nueva pulsación. El XDC
+asigna el buzzer a JA1 y la UART al puente USB-UART integrado.
+
+El XDC declara el oscilador de entrada de 100 MHz. `clk_wiz_0` debe tener
+`clk_in1` a 100 MHz y dos salidas: `clk_fpga` a 100 MHz para el sistema y
+`clk_vga` a 25 MHz para VGA. El Clocking Wizard propaga las restricciones de
+los relojes generados a partir de este reloj primario.
+
+Al crear/configurar el IP en Vivado, use el nombre de componente `clk_wiz_0`,
+habilite las salidas `clk_fpga` y `clk_vga` con esas frecuencias, y exponga
+`reset` (activo en alto) y `locked`. El wrapper RTL conecta directamente esos
+puertos; no renombre la entrada `clk_in1`.
 ## Pendientes para una configuración reproducible
 
-- `ConstraintsTop.xdc` asigna pines, pero todavía no contiene `create_clock`
-  para el reloj de 100 MHz. Añada la restricción de timing antes de considerar
-  completo el análisis temporal.
 - `soc_top` instancia los IP `clk_wiz_0` y `batalla_naval_mem`. El repositorio
   no incluye un `.xpr` ni la configuración/fuentes generadas de esos IP; deben
   agregarse o regenerarse en Vivado.
-- La tarjeta proporciona cinco pulsadores y dos switches para las siete
-  entradas de `j1_input`. La concatenación RTL actual conecta
-  `btns[6:0] = {btnC, btnU, btnD, btnL, btnR, sw[1:0]}`; este orden no coincide
-  con la asignación funcional de navegación, selección y confirmación descrita
-  en `docs/diseño/planteamiento.md`. Corrija la conexión RTL o acuerde y
-  documente una asignación funcional distinta antes de la demostración.
+- `clk_wiz_0` y `batalla_naval_mem` no tienen archivos de configuración Vivado
+  versionados en el repositorio. Configure el Clocking Wizard según los nombres
+  y frecuencias anteriores antes de sintetizar.
 - Las fuentes marcadas como deshabilitadas para síntesis del SoC no deben
   excluirse del conjunto de simulación si se necesitan para sus testbenches.
 

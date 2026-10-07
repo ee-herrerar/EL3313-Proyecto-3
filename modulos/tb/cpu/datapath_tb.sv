@@ -4,12 +4,18 @@ module datapath_tb;
     logic [1:0] ResultSrc = 0, PCSrc = 0;
     logic [3:0] ALUControl = 0, ImmSrc = 0;
     logic [31:0] PC, Instr; logic zero, less;
-    datapath dut (.*);
+    logic [31:0] ProgInstr_i = 32'h00000013, DataReadData_i = 0;
+    logic [31:0] DataAddress_o, DataWriteData_o;
+    logic [2:0] DataFunct3_o;
+    logic DataWriteEnable_o;
+    datapath #(.EXTERNAL_MEMORY(1'b1)) dut (.*);
     always #5 clk = ~clk;
     initial begin
-        dut.u_imem.mem[0] = 32'h00000013;
+        // .* conecta por nombre cada señal que comparte nombre con un puerto.
         repeat (2) @(posedge clk); #1; assert (PC == 0) else $fatal(1, "datapath reset failed");
-        rst = 0; @(posedge clk); #1; assert (PC == 4) else $fatal(1, "datapath PC increment failed");
+        rst = 0;
+        repeat (2) @(posedge clk); #1;
+        assert (PC == 4) else $fatal(1, "datapath PC increment failed");
         $display("datapath_tb: PASS"); $finish;
     end
 endmodule

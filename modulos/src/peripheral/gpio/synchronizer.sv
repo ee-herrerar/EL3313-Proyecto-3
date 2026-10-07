@@ -1,4 +1,4 @@
-module sync #(
+module synchronizer #(
     parameter int N = 6 // Número de bits/botones
 )(
     input  logic         clk,

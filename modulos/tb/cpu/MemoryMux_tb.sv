@@ -53,7 +53,7 @@ module MemoryMux_tb;
         if (errors == 0)
             $display("TODOS LOS TESTS DE MemoryMux PASARON");
         else
-            $display("FALLARON %0d TESTS", errors);
+            $fatal(1, "FALLARON %0d TESTS", errors);
 
         $finish;
     end

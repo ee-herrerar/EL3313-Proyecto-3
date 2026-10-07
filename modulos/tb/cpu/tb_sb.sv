@@ -25,6 +25,7 @@ module tb_sb;
         WD = 32'd0;
         funct3 = 3'b010;
 
+        #1;
         dut.mem[0] = 32'hAABBCCDD;
 
         #10;

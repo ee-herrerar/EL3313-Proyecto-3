@@ -15,9 +15,9 @@ misma configuración.
 
 El top general asigna pines para los cinco pulsadores, dos switches, UART
 integrada USB-UART, VGA, display, LED y buzzer en JA1. `ConstraintsTop.xdc`
-todavía necesita una restricción `create_clock` de 100 MHz para análisis de
-timing. Además, verifique en `constraints/README.md` la discrepancia entre el
-orden actual de las entradas GPIO en RTL y el orden funcional documentado.
+declara el reloj primario de entrada de 100 MHz; el Clocking Wizard entrega
+`clk_fpga` a 100 MHz y `clk_vga` a 25 MHz. El mapeo GPIO de `soc_top` coincide
+con el orden funcional descrito en `constraints/README.md`.
 
 Para sintetizar `soc_top` también deben estar disponibles los IP
 `clk_wiz_0` y `batalla_naval_mem`, instanciados desde RTL pero sin configuración

@@ -4,12 +4,35 @@ module CPU_P3_tb;
 
     logic clk;
     logic rst;
+    logic [31:0] ProgInstr_i, ProgAddress_o;
+    logic [31:0] DataIn_i, DataAddress_o, DataOut_o;
+    logic [2:0] DataFunct3_o;
+    logic DataWriteEnable_o;
+    logic [31:0] program_mem [0:255];
 
     cpu dut(
         .clk(clk),
-        .rst(rst)
+        .rst(rst),
+        .ProgInstr_i(ProgInstr_i),
+        .ProgAddress_o(ProgAddress_o),
+        .DataIn_i(DataIn_i),
+        .DataAddress_o(DataAddress_o),
+        .DataOut_o(DataOut_o),
+        .DataFunct3_o(DataFunct3_o),
+        .DataWriteEnable_o(DataWriteEnable_o)
     );
 
+    data_mem dmem (
+        .clk(clk),
+        .WE(DataWriteEnable_o),
+        .A(DataAddress_o),
+        .WD(DataOut_o),
+        .funct3(DataFunct3_o),
+        .RD(DataIn_i)
+    );
+
+    // La ROM de prueba es combinacional y se direcciona por palabra (PC[9:2]).
+    always_comb ProgInstr_i = program_mem[ProgAddress_o[9:2]];
     always #5 clk = ~clk;
 
     function automatic [31:0] enc_r;
@@ -70,6 +93,9 @@ module CPU_P3_tb;
         end
     endfunction
 
+    integer i;
+    integer errors = 0;
+
     task automatic check_reg;
         input integer reg_number;
         input integer expected;
@@ -78,83 +104,87 @@ module CPU_P3_tb;
         begin
             actual = dut.dp.u_regfile.regs[reg_number];
             if (actual !== expected[31:0]) begin
-                $error("%s: x%0d = %0d, esperado %0d", instruction_name, reg_number, $signed(actual), $signed(expected));
+                errors = errors + 1;
+                $display("ERROR %s: x%0d = %0d, esperado %0d", instruction_name, reg_number, $signed(actual), $signed(expected));
             end else begin
                 $display("OK %-8s x%0d = %0d", instruction_name, reg_number, $signed(actual));
             end
         end
     endtask
 
-    integer i;
     initial begin
         clk = 0;
         rst = 1;
 
-        // Espera a que termine la inicializacion de instr_mem y carga este programa.
+        // Inicializa la ROM tras el arranque y carga el programa de prueba.
         #1;
         for (i = 0; i < 256; i = i + 1)
-            dut.dp.u_imem.mem[i] = 32'h00000013; // nop
+            program_mem[i] = 32'h00000013; // nop
 
         // Aritmetica, logica e inmediatos.
-        dut.dp.u_imem.mem[0]  = enc_i(10, 0, 3'b000, 1, 7'b0010011); // addi x1, x0, 10
-        dut.dp.u_imem.mem[1]  = enc_i(3,  0, 3'b000, 2, 7'b0010011); // addi x2, x0, 3
-        dut.dp.u_imem.mem[2]  = enc_r(0, 2, 1, 3'b000, 3);             // add x3, x1, x2
-        dut.dp.u_imem.mem[3]  = enc_r(7'b0100000, 2, 1, 3'b000, 4);   // sub x4, x1, x2
-        dut.dp.u_imem.mem[4]  = enc_r(0, 2, 1, 3'b111, 5);             // and x5, x1, x2
-        dut.dp.u_imem.mem[5]  = enc_r(0, 2, 1, 3'b110, 6);             // or x6, x1, x2
-        dut.dp.u_imem.mem[6]  = enc_r(0, 2, 1, 3'b100, 7);             // xor x7, x1, x2
-        dut.dp.u_imem.mem[7]  = enc_i(1, 0, 3'b000, 8, 7'b0010011);   // addi x8, x0, 1
-        dut.dp.u_imem.mem[8]  = enc_r(0, 8, 8, 3'b001, 9);             // sll x9, x8, x8
-        dut.dp.u_imem.mem[9]  = enc_r(0, 8, 9, 3'b101, 10);            // srl x10, x9, x8
-        dut.dp.u_imem.mem[10] = enc_i(8, 0, 3'b000, 11, 7'b0010011);  // addi x11, x0, 8
-        dut.dp.u_imem.mem[11] = enc_i(3, 11, 3'b001, 12, 7'b0010011);  // slli x12, x11, 3
-        dut.dp.u_imem.mem[12] = enc_i(1, 12, 3'b101, 13, 7'b0010011);  // srli x13, x12, 1
-        dut.dp.u_imem.mem[13] = enc_i(32'h401, 11, 3'b101, 14, 7'b0010011); // srai x14, x11, 1
-        dut.dp.u_imem.mem[14] = enc_i(-1, 0, 3'b000, 15, 7'b0010011); // addi x15, x0, -1
-        dut.dp.u_imem.mem[15] = enc_r(0, 1, 15, 3'b010, 16);          // slt x16, x15, x1
-        dut.dp.u_imem.mem[16] = enc_i(0, 15, 3'b010, 17, 7'b0010011); // slti x17, x15, 0
-        dut.dp.u_imem.mem[17] = enc_r(0, 1, 15, 3'b011, 18);           // sltu x18, x15, x1
-        dut.dp.u_imem.mem[18] = enc_i(0, 15, 3'b011, 19, 7'b0010011); // sltiu x19, x15, 0
-        dut.dp.u_imem.mem[19] = enc_i(8'h0a, 0, 3'b111, 20, 7'b0010011); // andi x20, x0, 10
-        dut.dp.u_imem.mem[20] = enc_i(8'h0a, 1, 3'b100, 21, 7'b0010011); // xori x21, x1, 10
-        dut.dp.u_imem.mem[21] = enc_i(8'h05, 1, 3'b110, 22, 7'b0010011); // ori x22, x1, 5
+        program_mem[0]  = enc_i(10, 0, 3'b000, 1, 7'b0010011); // addi x1, x0, 10
+        program_mem[1]  = enc_i(3,  0, 3'b000, 2, 7'b0010011); // addi x2, x0, 3
+        program_mem[2]  = enc_r(0, 2, 1, 3'b000, 3);             // add x3, x1, x2
+        program_mem[3]  = enc_r(7'b0100000, 2, 1, 3'b000, 4);   // sub x4, x1, x2
+        program_mem[4]  = enc_r(0, 2, 1, 3'b111, 5);             // and x5, x1, x2
+        program_mem[5]  = enc_r(0, 2, 1, 3'b110, 6);             // or x6, x1, x2
+        program_mem[6]  = enc_r(0, 2, 1, 3'b100, 7);             // xor x7, x1, x2
+        program_mem[7]  = enc_i(1, 0, 3'b000, 8, 7'b0010011);   // addi x8, x0, 1
+        program_mem[8]  = enc_r(0, 8, 8, 3'b001, 9);             // sll x9, x8, x8
+        program_mem[9]  = enc_r(0, 8, 9, 3'b101, 10);            // srl x10, x9, x8
+        program_mem[10] = enc_i(8, 0, 3'b000, 11, 7'b0010011);  // addi x11, x0, 8
+        program_mem[11] = enc_i(3, 11, 3'b001, 12, 7'b0010011);  // slli x12, x11, 3
+        program_mem[12] = enc_i(1, 12, 3'b101, 13, 7'b0010011);  // srli x13, x12, 1
+        program_mem[13] = enc_i(32'h401, 11, 3'b101, 14, 7'b0010011); // srai x14, x11, 1
+        program_mem[14] = enc_i(-1, 0, 3'b000, 15, 7'b0010011); // addi x15, x0, -1
+        program_mem[15] = enc_r(0, 1, 15, 3'b010, 16);          // slt x16, x15, x1
+        program_mem[16] = enc_i(0, 15, 3'b010, 17, 7'b0010011); // slti x17, x15, 0
+        program_mem[17] = enc_r(0, 1, 15, 3'b011, 18);           // sltu x18, x15, x1
+        program_mem[18] = enc_i(0, 15, 3'b011, 19, 7'b0010011); // sltiu x19, x15, 0
+        program_mem[19] = enc_i(8'h0a, 0, 3'b111, 20, 7'b0010011); // andi x20, x0, 10
+        program_mem[20] = enc_i(8'h0a, 1, 3'b100, 21, 7'b0010011); // xori x21, x1, 10
+        program_mem[21] = enc_i(8'h05, 1, 3'b110, 22, 7'b0010011); // ori x22, x1, 5
 
         // Memoria de datos.
-        dut.dp.u_imem.mem[22] = enc_i(64, 0, 3'b000, 23, 7'b0010011);  // addi x23, x0, 64
-        dut.dp.u_imem.mem[23] = enc_i(123, 0, 3'b000, 24, 7'b0010011); // addi x24, x0, 123
-        dut.dp.u_imem.mem[24] = enc_s(0, 24, 23, 3'b010);               // sw x24, 0(x23)
-        dut.dp.u_imem.mem[25] = enc_i(0, 23, 3'b010, 25, 7'b0000011);   // lw x25, 0(x23)
+        program_mem[22] = enc_i(64, 0, 3'b000, 23, 7'b0010011);  // addi x23, x0, 64
+        program_mem[23] = enc_i(123, 0, 3'b000, 24, 7'b0010011); // addi x24, x0, 123
+        program_mem[24] = enc_s(0, 24, 23, 3'b010);               // sw x24, 0(x23)
+        program_mem[25] = enc_i(0, 23, 3'b010, 25, 7'b0000011);   // lw x25, 0(x23)
 
         // Branches: cada salto omite una instruccion que escribira 99.
-        dut.dp.u_imem.mem[26] = enc_b(8, 1, 1, 3'b000);                 // beq x1, x1, +8
-        dut.dp.u_imem.mem[27] = enc_i(99, 0, 3'b000, 26, 7'b0010011);  // omitida
-        dut.dp.u_imem.mem[28] = enc_b(8, 1, 2, 3'b001);                 // bne x2, x1, +8
-        dut.dp.u_imem.mem[29] = enc_i(99, 0, 3'b000, 26, 7'b0010011);  // omitida
-        dut.dp.u_imem.mem[30] = enc_b(8, 1, 2, 3'b100);                 // blt x2, x1, +8
-        dut.dp.u_imem.mem[31] = enc_i(99, 0, 3'b000, 26, 7'b0010011);  // omitida
-        dut.dp.u_imem.mem[32] = enc_b(8, 2, 1, 3'b101);                 // bge x1, x2, +8
-        dut.dp.u_imem.mem[33] = enc_i(99, 0, 3'b000, 26, 7'b0010011);  // omitida
-        dut.dp.u_imem.mem[34] = enc_i(7, 0, 3'b000, 26, 7'b0010011);   // valor esperado
+        program_mem[26] = enc_b(8, 1, 1, 3'b000);                 // beq x1, x1, +8
+        program_mem[27] = enc_i(99, 0, 3'b000, 26, 7'b0010011);  // omitida
+        program_mem[28] = enc_b(8, 1, 2, 3'b001);                 // bne x2, x1, +8
+        program_mem[29] = enc_i(99, 0, 3'b000, 26, 7'b0010011);  // omitida
+        program_mem[30] = enc_b(8, 1, 2, 3'b100);                 // blt x2, x1, +8
+        program_mem[31] = enc_i(99, 0, 3'b000, 26, 7'b0010011);  // omitida
+        program_mem[32] = enc_b(8, 2, 1, 3'b101);                 // bge x1, x2, +8
+        program_mem[33] = enc_i(99, 0, 3'b000, 26, 7'b0010011);  // omitida
+        program_mem[34] = enc_i(7, 0, 3'b000, 26, 7'b0010011);   // valor esperado
 
         // JAL: salta a la instruccion 37 y guarda PC+4 en x27.
-        dut.dp.u_imem.mem[35] = enc_j(8, 27);                           // jal x27, +8
-        dut.dp.u_imem.mem[36] = enc_i(99, 0, 3'b000, 26, 7'b0010011);  // omitida
-        dut.dp.u_imem.mem[37] = enc_i(8, 0, 3'b000, 28, 7'b0010011);   // addi x28, x0, 8
+        program_mem[35] = enc_j(8, 27);                           // jal x27, +8
+        program_mem[36] = enc_i(99, 0, 3'b000, 26, 7'b0010011);  // omitida
+        program_mem[37] = enc_i(8, 0, 3'b000, 28, 7'b0010011);   // addi x28, x0, 8
 
         // JALR: salta a la instruccion 41 y guarda PC+4 en x30.
-        dut.dp.u_imem.mem[38] = enc_i(164, 0, 3'b000, 29, 7'b0010011); // direccion byte de mem[41]
-        dut.dp.u_imem.mem[39] = enc_i(0, 29, 3'b000, 30, 7'b1100111); // jalr x30, 0(x29)
-        dut.dp.u_imem.mem[40] = enc_i(99, 0, 3'b000, 26, 7'b0010011); // omitida
-        dut.dp.u_imem.mem[41] = enc_i(9, 0, 3'b000, 31, 7'b0010011);  // addi x31, x0, 9
-        dut.dp.u_imem.mem[42] = enc_r(7'b0100000, 8, 15, 3'b101, 15); // sra x15, x15, x8
-        dut.dp.u_imem.mem[43] = enc_j(0, 0);                            // detener en este punto
+        program_mem[38] = enc_i(164, 0, 3'b000, 29, 7'b0010011); // direccion byte de mem[41]
+        program_mem[39] = enc_i(0, 29, 3'b000, 30, 7'b1100111); // jalr x30, 0(x29)
+        program_mem[40] = enc_i(99, 0, 3'b000, 26, 7'b0010011); // omitida
+        program_mem[41] = enc_i(9, 0, 3'b000, 31, 7'b0010011);  // addi x31, x0, 9
+        program_mem[42] = enc_r(7'b0100000, 8, 15, 3'b101, 15); // sra x15, x15, x8
+        program_mem[43] = enc_j(0, 0);                            // detener en este punto
 
         repeat (2) @(posedge clk);
+        @(negedge clk);
         rst = 0;
-        repeat (48) @(posedge clk);
+        // InstrValid habilita una instrucción cada dos flancos de reloj.
+        repeat (96) @(posedge clk);
         #1;
 
         $display("\n--- RESULTADOS CPU_P3 ---");
+        check_reg(1, 10, "addi");
+        check_reg(2, 3, "addi");
         check_reg(3, 13, "add");
         check_reg(4, 7,  "sub");
         check_reg(5, 2,  "and");
@@ -179,7 +209,16 @@ module CPU_P3_tb;
         check_reg(28, 8, "jal target");
         check_reg(30, 160, "jalr link");
         check_reg(31, 9, "jalr target");
+        if (dmem.mem[16] !== 32'd123) begin
+            errors = errors + 1;
+            $display("ERROR sw: mem[16] = %0d, esperado 123", dmem.mem[16]);
+        end else begin
+            $display("OK sw: mem[16] = %0d", dmem.mem[16]);
+        end
 
+        if (errors != 0)
+            $fatal(1, "CPU_P3: %0d verificaciones fallaron", errors);
+        $display("CPU_P3: todas las verificaciones pasaron");
         $finish;
     end
 

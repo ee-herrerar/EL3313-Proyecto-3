@@ -9,6 +9,7 @@ module vga_top_dut_board_tb;
     initial begin
         #1; btnC = 1;
         repeat (2) @(posedge clk100mhz);
+        @(negedge clk100mhz);
         btnC = 0;
         repeat (700) @(posedge clk100mhz);
         $display("vga_top_dut_board_tb: SMOKE PASS (hsync=%b vsync=%b)", hsync, vsync);
